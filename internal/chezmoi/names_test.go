@@ -1,7 +1,6 @@
 package chezmoi
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -69,7 +68,7 @@ func TestTargetPathMatchesChezmoi(t *testing.T) {
 	src := t.TempDir()
 	config := filepath.Join(t.TempDir(), "chezmoi.toml")
 	// Encryption must be configured for chezmoi to drop the .age suffix.
-	writeFile(t, config, "encryption = \"age\"\n[age]\nidentity = \"/nonexistent\"\nrecipient = \"age1x\"\n")
+	testenv.WriteFile(t, config, "encryption = \"age\"\n[age]\nidentity = \"/nonexistent\"\nrecipient = \"age1x\"\n")
 
 	dirs := []string{
 		"", "exact_", "private_", "readonly_", "external_", "dot_", "literal_",
@@ -107,7 +106,7 @@ func TestTargetPathMatchesChezmoi(t *testing.T) {
 
 	var valid []string
 	for _, s := range sources {
-		writeFile(t, filepath.Join(src, s), "")
+		testenv.WriteFile(t, filepath.Join(src, s), "")
 		if _, ok := TargetPath(s); ok {
 			valid = append(valid, s)
 		} else if out, err := chezmoiTargetPath(t, home, src, config, s); err == nil {
@@ -145,14 +144,4 @@ func chezmoiTargetPath(t *testing.T, home, src, config string, sources ...string
 	}
 	out, err := exec.CommandContext(t.Context(), "chezmoi", args...).Output()
 	return string(out), err
-}
-
-func writeFile(t *testing.T, name, data string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(name, []byte(data), 0o644); err != nil {
-		t.Fatal(err)
-	}
 }
