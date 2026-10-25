@@ -1,0 +1,61 @@
+# See https://golangci-lint.run/docs/configuration/.
+#
+# The standard linters plus the ones that catch real mistakes in a CLI.
+# Length and complexity limits are left off, and so is gosec: dot runs
+# chezmoi and git with arguments built at run time, which gosec flags on
+# every call.
+
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - copyloopvar
+    - errorlint
+    - forbidigo
+    - gocritic
+    - intrange
+    - misspell
+    - modernize
+    - nilerr
+    - nolintlint
+    - perfsprint
+    - revive
+    - thelper
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+  settings:
+    forbidigo:
+      forbid:
+        # Commands write through iostreams.Streams so tests can capture
+        # their output.
+        - pattern: ^fmt\.Print
+          msg: write to the command's streams instead
+        - pattern: ^os\.(Stdin|Stdout|Stderr)$
+          msg: use iostreams.Streams instead
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # The one place that hands the real streams to everything else.
+      - path: ^internal/iostreams/
+        linters:
+          - forbidigo
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/jtieri/dot
