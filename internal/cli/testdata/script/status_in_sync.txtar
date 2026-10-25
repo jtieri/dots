@@ -1,0 +1,28 @@
+# A machine that matches the repo, with nothing to push or pull, is in sync.
+dotfiles
+exitcode 0 dot status
+cmp stdout want.txt
+! stderr .
+
+exitcode 0 dot status --json
+stdout '"version": 1'
+stdout '"in_sync": true'
+! stderr .
+
+# Personal files beside tracked ones, in the folders the check skips.
+mkdir $HOME/.ssh
+cp secret $HOME/.ssh/id_ed25519
+cp secret $HOME/notes.txt
+exitcode 0 dot status
+cmp stdout want.txt
+
+-- want.txt --
+In sync.
+-- secret --
+private
+-- home/dotfiles/home/dot_bashrc --
+bashrc
+-- home/dotfiles/home/dot_config/kitty/kitty.conf --
+kitty
+-- home/dotfiles/home/private_dot_ssh/config --
+Host *

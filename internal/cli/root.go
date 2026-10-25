@@ -2,7 +2,11 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
@@ -11,21 +15,38 @@ import (
 )
 
 // Exit codes follow grep: 0 for success, 1 when there is something to act
-// on, and 2 for errors, including bad usage.
+// on, and 2 for errors, including bad usage. An interrupted run exits as a
+// shell reports a command killed by Ctrl-C.
 const (
-	exitOK    = 0
-	exitError = 2
+	exitOK          = 0
+	exitOutOfSync   = 1
+	exitError       = 2
+	exitInterrupted = 130
 )
 
-// Main runs dot with args and returns the process exit code.
+// errOutOfSync is returned by a command that has reported something to act
+// on. Main exits 1 without printing it.
+var errOutOfSync = errors.New("out of sync")
+
+// Main runs dot with args and returns the process exit code. Ctrl-C cancels
+// the running command, which stops the programs it started.
 func Main(args []string, streams *iostreams.Streams) int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	root := newRootCmd(streams)
 	root.SetArgs(args)
-	if err := root.Execute(); err != nil {
+	err := root.ExecuteContext(ctx)
+	switch {
+	case err == nil:
+		return exitOK
+	case errors.Is(err, errOutOfSync):
+		return exitOutOfSync
+	case ctx.Err() != nil:
+		return exitInterrupted
+	default:
 		fmt.Fprintln(streams.ErrOut, "dot:", err)
 		return exitError
 	}
-	return exitOK
 }
 
 func newRootCmd(streams *iostreams.Streams) *cobra.Command {
@@ -49,6 +70,7 @@ making it.`,
 	cmd.SetOut(streams.Out)
 	cmd.SetErr(streams.ErrOut)
 	cmd.SetVersionTemplate("dot {{.Version}}\n")
+	cmd.AddCommand(newStatusCmd(streams))
 	return cmd
 }
 

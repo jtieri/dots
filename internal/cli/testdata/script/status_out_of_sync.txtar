@@ -1,0 +1,35 @@
+# Each kind of difference is reported, and dot status exits 1.
+dotfiles
+
+cp edited $HOME/.bashrc
+cp edited $HOME/.config/kitty/left-over.conf
+cp edited $HOME/dotfiles/home/dot_profile
+exitcode 1 dot status
+cmpenv stdout want.txt
+! stderr .
+
+exitcode 1 dot status --json
+stdout '"in_sync": false'
+stdout '"path": ".bashrc",\s*\n\s*"kind": "changed_here"'
+stdout '"home_path": ".profile"'
+stdout '"leftovers": \[\s*\n\s*".config/kitty/left-over.conf"'
+
+-- edited --
+edited
+-- want.txt --
+Repo $WORK/home/dotfiles
+  Uncommitted changes:
+    modified  ~/.profile
+
+Home
+  changed on this machine   ~/.bashrc
+  repo has a newer version  ~/.profile
+
+Leftovers: in tracked folders but not tracked
+  ~/.config/kitty/left-over.conf
+-- home/dotfiles/home/dot_bashrc --
+bashrc
+-- home/dotfiles/home/dot_profile --
+profile
+-- home/dotfiles/home/dot_config/kitty/kitty.conf --
+kitty
