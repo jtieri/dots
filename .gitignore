@@ -1,0 +1,7 @@
+# Build output
+/bin/
+/dot
+
+# Test output
+*.test
+coverage.out
