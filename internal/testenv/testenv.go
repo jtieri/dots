@@ -3,6 +3,7 @@ package testenv
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -125,4 +126,15 @@ func WriteFile(t *testing.T, name, data string) {
 	if err := os.WriteFile(name, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Running reports whether the process pid exists and has not exited.
+func Running(pid int) bool {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return false
+	}
+	// The state follows the command name, which is in parentheses.
+	_, after, _ := strings.Cut(string(data), ") ")
+	return after != "" && after[0] != 'Z'
 }

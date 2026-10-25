@@ -3,7 +3,6 @@ package git
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -177,7 +176,7 @@ func TestRepo(t *testing.T) {
 			t.Fatal(err)
 		}
 		for range 50 {
-			if !running(pid) {
+			if !testenv.Running(pid) {
 				return
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -192,15 +191,4 @@ func assertAheadBehind(t *testing.T, r *Repo, wantAhead, wantBehind int) {
 	if err != nil || ahead != wantAhead || behind != wantBehind {
 		t.Errorf("AheadBehind() = %d, %d, %v; want %d, %d", ahead, behind, err, wantAhead, wantBehind)
 	}
-}
-
-// running reports whether the process pid exists and has not exited.
-func running(pid int) bool {
-	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-	if err != nil {
-		return false
-	}
-	// The state follows the command name, which is in parentheses.
-	_, after, _ := strings.Cut(string(data), ") ")
-	return after != "" && after[0] != 'Z'
 }
