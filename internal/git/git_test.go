@@ -118,11 +118,7 @@ func TestRepo(t *testing.T) {
 		d.Git(t, "commit", "--quiet", "--all", "--message=local")
 		assertAheadBehind(t, r, 1, 0)
 
-		other := filepath.Join(t.TempDir(), "other")
-		testenv.Run(t, d.Home, "git", "clone", "--quiet", d.Remote, other)
-		testenv.WriteFile(t, filepath.Join(other, "home/dot_profile"), "remote\n")
-		testenv.Run(t, other, "git", "commit", "--quiet", "--all", "--message=remote")
-		testenv.Run(t, other, "git", "push", "--quiet")
+		d.PushFromElsewhere(t, map[string]string{"home/dot_profile": "remote\n"})
 		assertAheadBehind(t, r, 1, 0) // not fetched yet
 
 		before := time.Now().Add(-time.Second)
@@ -192,25 +188,6 @@ func assertAheadBehind(t *testing.T, r *Repo, wantAhead, wantBehind int) {
 	}
 }
 
-// pushFromElsewhere commits changes to the repo in another clone of its
-// remote and pushes them, as another machine would. changes maps paths in the
-// repo to their new contents; an empty string deletes the file.
-func pushFromElsewhere(t *testing.T, d *testenv.Dotfiles, changes map[string]string) {
-	t.Helper()
-	other := filepath.Join(t.TempDir(), "other")
-	testenv.Run(t, d.Home, "git", "clone", "--quiet", d.Remote, other)
-	for name, data := range changes {
-		if data == "" {
-			testenv.Run(t, other, "git", "rm", "--quiet", name)
-			continue
-		}
-		testenv.WriteFile(t, filepath.Join(other, name), data)
-	}
-	testenv.Run(t, other, "git", "add", "--all")
-	testenv.Run(t, other, "git", "commit", "--quiet", "--message=elsewhere")
-	testenv.Run(t, other, "git", "push", "--quiet")
-}
-
 func TestFastForward(t *testing.T) {
 	tests := []struct {
 		name string
@@ -227,8 +204,8 @@ func TestFastForward(t *testing.T) {
 			name: "behind",
 			setup: func(t *testing.T, d *testenv.Dotfiles) {
 				t.Helper()
-				pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
-				pushFromElsewhere(t, d, map[string]string{"home/dot_new": "new\n"})
+				d.PushFromElsewhere(t, map[string]string{"home/dot_a": "a from elsewhere\n"})
+				d.PushFromElsewhere(t, map[string]string{"home/dot_new": "new\n"})
 			},
 			want: 2,
 		},
@@ -245,7 +222,7 @@ func TestFastForward(t *testing.T) {
 			name: "file deleted here and upstream",
 			setup: func(t *testing.T, d *testenv.Dotfiles) {
 				t.Helper()
-				pushFromElsewhere(t, d, map[string]string{"home/dot_a": ""})
+				d.PushFromElsewhere(t, map[string]string{"home/dot_a": ""})
 				if err := os.Remove(filepath.Join(d.Source, "dot_a")); err != nil {
 					t.Fatal(err)
 				}
@@ -279,7 +256,7 @@ func TestFastForward(t *testing.T) {
 
 func TestFastForwardDiverged(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n"})
-	pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
+	d.PushFromElsewhere(t, map[string]string{"home/dot_a": "a from elsewhere\n"})
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_b"), "b from here\n")
 	d.Git(t, "commit", "--quiet", "--all", "--message=here")
 	d.Git(t, "fetch", "--quiet")
@@ -337,7 +314,7 @@ func TestFastForwardBlocked(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_r": "r\n"})
-			pushFromElsewhere(t, d, map[string]string{
+			d.PushFromElsewhere(t, map[string]string{
 				"home/dot_a":   "a from elsewhere\n",
 				"home/dot_new": "new\n",
 				"home/dot_r":   "",
@@ -377,7 +354,7 @@ func TestFastForwardNoUpstream(t *testing.T) {
 // interrupted as Ctrl-C would rather than killed, so git can clean up.
 func TestFastForwardInterrupt(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
-	pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
+	d.PushFromElsewhere(t, map[string]string{"home/dot_a": "a from elsewhere\n"})
 	d.Git(t, "fetch", "--quiet")
 
 	// A git that hangs in merge until interrupted, and records that it was.

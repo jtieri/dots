@@ -151,6 +151,25 @@ func (d *Dotfiles) Git(t *testing.T, args ...string) string {
 	return Run(t, d.Repo, "git", args...)
 }
 
+// PushFromElsewhere commits changes to the repo in another clone of its
+// remote and pushes them, as another machine would. changes maps paths in the
+// repo to their new contents; an empty string deletes the file.
+func (d *Dotfiles) PushFromElsewhere(t *testing.T, changes map[string]string) {
+	t.Helper()
+	other := filepath.Join(t.TempDir(), "other")
+	Run(t, d.Home, "git", "clone", "--quiet", d.Remote, other)
+	for name, data := range changes {
+		if data == "" {
+			Run(t, other, "git", "rm", "--quiet", name)
+			continue
+		}
+		WriteFile(t, filepath.Join(other, name), data)
+	}
+	Run(t, other, "git", "add", "--all")
+	Run(t, other, "git", "commit", "--quiet", "--message=elsewhere")
+	Run(t, other, "git", "push", "--quiet")
+}
+
 // Run runs a program in dir and returns its standard output. It fails the
 // test if the program fails.
 func Run(t *testing.T, dir, name string, args ...string) string {

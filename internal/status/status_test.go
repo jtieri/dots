@@ -83,12 +83,7 @@ func TestCheckFindsEverything(t *testing.T) {
 	testenv.WriteFile(t, src("dot_x"), "x committed\n")
 	d.Git(t, "commit", "--quiet", "--all", "--message=local")
 	d.Chezmoi(t, "apply", "--exclude=scripts")
-	other := filepath.Join(t.TempDir(), "other")
-	testenv.Run(t, d.Home, "git", "clone", "--quiet", d.Remote, other)
-	testenv.WriteFile(t, filepath.Join(other, "README.md"), "remote\n")
-	testenv.Run(t, other, "git", "add", "README.md")
-	testenv.Run(t, other, "git", "commit", "--quiet", "--message=remote")
-	testenv.Run(t, other, "git", "push", "--quiet")
+	d.PushFromElsewhere(t, map[string]string{"README.md": "remote\n"})
 
 	// Changes on this machine.
 	testenv.WriteFile(t, home(".bashrc"), "edited here\n")
