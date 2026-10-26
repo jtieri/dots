@@ -16,6 +16,7 @@ var defaults = Config{
 	FetchTimeout:    10 * time.Second,
 	Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh"}},
 	ModifyTemplates: []string{},
+	OverwriteBackup: OverwriteBackup{Enabled: true, KeepDays: 30},
 }
 
 // writeConfig writes the default configuration file.
@@ -44,6 +45,10 @@ modify_templates = ["~/.config/zed/settings.json"]
 
 [leftovers]
 skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
+
+[overwrite_backup]
+enabled = false
+keep_days = 0
 `)
 	got, err := Load("")
 	if err != nil {
@@ -54,6 +59,7 @@ skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
 		FetchTimeout:    90 * time.Second,
 		Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh", "Pictures"}},
 		ModifyTemplates: []string{".config/zed/settings.json"},
+		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 0},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
@@ -67,6 +73,8 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	t.Setenv("DOT_FETCH_TIMEOUT", "1m")
 	t.Setenv("DOT_LEFTOVERS_SKIP", "~/a,~/b c")
 	t.Setenv("DOT_MODIFY_TEMPLATES", "~/.config/zed/settings.json")
+	t.Setenv("DOT_OVERWRITE_BACKUP_ENABLED", "false")
+	t.Setenv("DOT_OVERWRITE_BACKUP_KEEP_DAYS", "7")
 	got, err := Load("")
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +84,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 		FetchTimeout:    time.Minute,
 		Leftovers:       Leftovers{Skip: []string{"a", "b c"}},
 		ModifyTemplates: []string{".config/zed/settings.json"},
+		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 7},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
@@ -149,6 +158,11 @@ func TestLoadErrors(t *testing.T) {
 		{name: "absolute path", file: "[leftovers]\nskip = [\"/etc\"]\n", wantErr: `leftovers.skip: "/etc" must be ~ or start with ~/`},
 		{name: "path without ~", file: "[leftovers]\nskip = [\"Pictures\"]\n", wantErr: `leftovers.skip: "Pictures"`},
 		{name: "path leaving home", file: "modify_templates = [\"~/../x\"]\n", wantErr: `modify_templates: "~/../x"`},
+		{name: "number for a bool", file: "[overwrite_backup]\nenabled = 1\n", wantErr: "overwrite_backup.enabled"},
+		{name: "fraction for a number", file: "[overwrite_backup]\nkeep_days = 1.5\n", wantErr: "'overwrite_backup.keep_days' 1.5 is not a whole number"},
+		{name: "negative days", file: "[overwrite_backup]\nkeep_days = -1\n", wantErr: "overwrite_backup.keep_days -1 must not be negative"},
+		{name: "bad environment bool", env: map[string]string{"DOT_OVERWRITE_BACKUP_ENABLED": "maybe"}, wantErr: "overwrite_backup.enabled"},
+		{name: "bad environment number", env: map[string]string{"DOT_OVERWRITE_BACKUP_KEEP_DAYS": "a month"}, wantErr: "overwrite_backup.keep_days"},
 		{name: "bad environment value", env: map[string]string{"DOT_FETCH_TIMEOUT": "soon"}, wantErr: "fetch_timeout"},
 	}
 	for _, tt := range tests {

@@ -28,15 +28,24 @@ import (
 // Config holds dot's settings. Paths in the home directory are relative to
 // it, with "." for the home directory itself.
 type Config struct {
-	Branch          string        `mapstructure:"branch"`
-	FetchTimeout    time.Duration `mapstructure:"fetch_timeout"`
-	Leftovers       Leftovers     `mapstructure:"leftovers"`
-	ModifyTemplates []string      `mapstructure:"modify_templates"`
+	Branch          string          `mapstructure:"branch"`
+	FetchTimeout    time.Duration   `mapstructure:"fetch_timeout"`
+	Leftovers       Leftovers       `mapstructure:"leftovers"`
+	ModifyTemplates []string        `mapstructure:"modify_templates"`
+	OverwriteBackup OverwriteBackup `mapstructure:"overwrite_backup"`
 }
 
 // Leftovers holds the settings for the leftovers check.
 type Leftovers struct {
 	Skip []string `mapstructure:"skip"`
+}
+
+// OverwriteBackup holds the settings for the copies dot keeps of files it is
+// told to overwrite.
+type OverwriteBackup struct {
+	Enabled bool `mapstructure:"enabled"`
+	// KeepDays is how long copies are kept; 0 keeps them forever.
+	KeepDays int `mapstructure:"keep_days"`
 }
 
 // A Setting describes one setting, for loading it and for dot's help.
@@ -78,6 +87,19 @@ var Settings = []Setting{
 		Env:     "DOT_MODIFY_TEMPLATES",
 		Default: []string{},
 		Help:    "Files the repo keeps as chezmoi modify templates. dot warns when one is replaced by a plain copy.",
+	},
+	{
+		Key:     "overwrite_backup.enabled",
+		Env:     "DOT_OVERWRITE_BACKUP_ENABLED",
+		Default: true,
+		Help: "Whether to copy files changed on this machine before overwriting them, to " +
+			"$XDG_STATE_HOME/dot/overwritten/.",
+	},
+	{
+		Key:     "overwrite_backup.keep_days",
+		Env:     "DOT_OVERWRITE_BACKUP_KEEP_DAYS",
+		Default: 30,
+		Help:    "How many days to keep those copies. 0 keeps them forever.",
 	},
 }
 
@@ -132,9 +154,14 @@ func Load(file string) (*Config, error) {
 	var c Config
 	strict := func(dc *mapstructure.DecoderConfig) {
 		dc.WeaklyTypedInput = false
+		// Values from the environment are strings; these turn them into
+		// the setting's type.
 		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(
 			durationHook,
+			wholeNumberHook,
 			mapstructure.StringToSliceHookFunc(","),
+			mapstructure.StringToBoolHookFunc(),
+			mapstructure.StringToIntHookFunc(),
 		)
 	}
 	if err := v.UnmarshalExact(&c, strict); err != nil {
@@ -157,6 +184,16 @@ func durationHook(_, to reflect.Type, data any) (any, error) {
 		return nil, fmt.Errorf("%v is not a duration; write it as a string such as \"10s\"", data)
 	}
 	return time.ParseDuration(str)
+}
+
+// wholeNumberHook rejects a number with a fractional part for a whole-number
+// setting, which mapstructure would otherwise truncate.
+func wholeNumberHook(from, to reflect.Type, data any) (any, error) {
+	isFloat := from.Kind() == reflect.Float32 || from.Kind() == reflect.Float64
+	if to.Kind() == reflect.Int && isFloat {
+		return nil, fmt.Errorf("%v is not a whole number", data)
+	}
+	return data, nil
 }
 
 // decodeMessage returns the problems in a decoding error on one line,
@@ -195,6 +232,9 @@ func (c *Config) check() error {
 	}
 	if c.FetchTimeout <= 0 {
 		return fmt.Errorf("fetch_timeout %v must be more than zero", c.FetchTimeout)
+	}
+	if c.OverwriteBackup.KeepDays < 0 {
+		return fmt.Errorf("overwrite_backup.keep_days %d must not be negative", c.OverwriteBackup.KeepDays)
 	}
 	var err error
 	if c.Leftovers.Skip, err = homePaths("leftovers.skip", c.Leftovers.Skip); err != nil {
