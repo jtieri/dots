@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/jtieri/dot/internal/run"
 )
@@ -21,16 +23,25 @@ type Client struct {
 	Program string
 }
 
+// stopGrace is how long chezmoi has to stop after being interrupted before
+// it is killed.
+const stopGrace = 5 * time.Second
+
 // command returns a command that runs chezmoi with args. chezmoi never pages
 // or colors its output when run this way, and its standard input is empty,
 // so a question it did not expect to ask fails at once rather than waiting.
+// When ctx is done, chezmoi is interrupted as Ctrl-C would, so it can stop
+// cleanly, and killed if it has not exited after stopGrace.
 func (c *Client) command(ctx context.Context, args ...string) *exec.Cmd {
 	program := c.Program
 	if program == "" {
 		program = "chezmoi"
 	}
 	args = append([]string{"--no-tty", "--no-pager", "--color=false"}, args...)
-	return exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...)
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = stopGrace
+	return cmd
 }
 
 // output runs chezmoi with args and returns its standard output.
