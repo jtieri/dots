@@ -224,3 +224,33 @@ func TestApplyPrunesOldBackups(t *testing.T) {
 		t.Errorf("%s is still there, want it deleted after 30 days", old)
 	}
 }
+
+func TestApplyRestartNotices(t *testing.T) {
+	f := newApplyFixture(t)
+	testenv.WriteFile(t, f.path(".config/dot/config.toml"), `
+[[restart_notices]]
+program = "dot-test-editor"
+files = ["~/.update", "~/.here"]
+
+[[restart_notices]]
+program = "dot-test-idle"
+files = ["~/.update"]
+
+[[restart_notices]]
+program = "dot-test-bar"
+files = ["~/.unrelated"]
+`)
+	testenv.StartProgram(t, "dot-test-editor")
+	testenv.StartProgram(t, "dot-test-bar")
+	code, _, errOut := f.run("", false, "apply", "--yes")
+	if code != exitOK {
+		t.Fatalf("apply = %d, stderr %q", code, errOut)
+	}
+	if want := "dot-test-editor is running; restart it so it uses the new ~/.update.\n"; !strings.HasSuffix(errOut, want) {
+		t.Errorf("stderr = %q, want it to end with %q", errOut, want)
+	}
+	// dot-test-idle is not running, and dot-test-bar's file did not change.
+	if strings.Contains(errOut, "dot-test-idle") || strings.Contains(errOut, "dot-test-bar") {
+		t.Errorf("stderr = %q, want no notice for the other programs", errOut)
+	}
+}

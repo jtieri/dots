@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jtieri/dot/internal/apply"
 	"github.com/jtieri/dot/internal/backup"
+	"github.com/jtieri/dot/internal/dotfiles"
 	"github.com/jtieri/dot/internal/iostreams"
+	"github.com/jtieri/dot/internal/proc"
 )
 
 // applyFlags answer apply's questions in advance, for use without a terminal.
@@ -95,7 +98,39 @@ func (a *app) apply(ctx context.Context, flags applyFlags) error {
 	if err := backup.Prune(backupDir, a.cfg.OverwriteBackup.KeepDays, opts.Now); err != nil {
 		return fmt.Errorf("deleting old copies of overwritten files: %w", err)
 	}
-	return a.reportApplied(ctx)
+	if err := a.reportApplied(ctx); err != nil {
+		return err
+	}
+	return a.noticeRestarts(plan.ToApply(choice))
+}
+
+// noticeRestarts names the running programs, from the restart_notices
+// setting, whose files the apply changed.
+func (a *app) noticeRestarts(changes []apply.Change) error {
+	changed := make(map[string]bool)
+	for _, c := range changes {
+		changed[c.Path] = true
+	}
+	for _, n := range a.cfg.RestartNotices {
+		var files []string
+		for _, f := range n.Files {
+			if changed[f] {
+				files = append(files, dotfiles.Tilde(f))
+			}
+		}
+		if len(files) == 0 {
+			continue
+		}
+		running, err := proc.Running(n.Program)
+		if err != nil {
+			return err
+		}
+		if running {
+			fmt.Fprintf(a.streams.ErrOut, "%s is running; restart it so it uses the new %s.\n",
+				n.Program, strings.Join(files, ", "))
+		}
+	}
+	return nil
 }
 
 // chooseApply decides what to do about the plan: from the flags if they
