@@ -163,6 +163,92 @@ func (r *Repo) AheadBehind(ctx context.Context) (ahead, behind int, err error) {
 	return ahead, behind, nil
 }
 
+// DivergedError is returned by FastForward when the branch and its upstream
+// both have commits the other lacks.
+type DivergedError struct {
+	// Ahead and Behind count the commits only on the branch and only on its
+	// upstream.
+	Ahead, Behind int
+}
+
+func (e *DivergedError) Error() string {
+	return fmt.Sprintf("the branch and its upstream have diverged: %d commits only on the branch, %d only on the upstream",
+		e.Ahead, e.Behind)
+}
+
+// BlockedError is returned by FastForward when git refused to fast-forward
+// because that would overwrite uncommitted changes.
+type BlockedError struct {
+	// Paths are the files with uncommitted changes that the upstream also
+	// changes, relative to the top-level directory.
+	Paths []string
+	Err   error
+}
+
+func (e *BlockedError) Error() string {
+	return "the fast-forward would overwrite uncommitted changes to " + strings.Join(e.Paths, ", ")
+}
+
+func (e *BlockedError) Unwrap() error { return e.Err }
+
+// FastForward moves the current branch up to its upstream, as of the last
+// fetch, and returns the number of commits that brought in. It does nothing
+// when the branch already has every upstream commit, and returns a
+// *DivergedError when the branch also has commits of its own. Uncommitted
+// changes are kept, unless the upstream changes the same files: git then
+// refuses, nothing changes, and the error is a *BlockedError.
+func (r *Repo) FastForward(ctx context.Context) (int, error) {
+	ahead, behind, err := r.AheadBehind(ctx)
+	if err != nil {
+		return 0, err
+	}
+	switch {
+	case behind == 0:
+		return 0, nil
+	case ahead > 0:
+		return 0, &DivergedError{Ahead: ahead, Behind: behind}
+	}
+	if _, err := r.output(ctx, "merge", "--ff-only", "--quiet", "@{upstream}"); err != nil {
+		// git decides what blocks it, and is more lenient than an overlap:
+		// it allows a file deleted here that the upstream deletes too. The
+		// overlap only names the files once git has refused.
+		paths, overlapErr := r.overlap(ctx)
+		if overlapErr != nil || len(paths) == 0 {
+			return 0, err
+		}
+		return 0, &BlockedError{Paths: paths, Err: err}
+	}
+	return behind, nil
+}
+
+// overlap returns the files with uncommitted changes that the upstream also
+// changes.
+func (r *Repo) overlap(ctx context.Context) ([]string, error) {
+	out, err := r.output(ctx, "diff", "--name-only", "--no-renames", "-z", "HEAD", "@{upstream}")
+	if err != nil {
+		return nil, err
+	}
+	incoming := make(map[string]bool)
+	for p := range strings.SplitSeq(string(out), "\x00") {
+		if p != "" {
+			incoming[p] = true
+		}
+	}
+	changes, err := r.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, c := range changes {
+		for _, p := range []string{c.Path, c.OrigPath} {
+			if incoming[p] {
+				paths = append(paths, p)
+			}
+		}
+	}
+	return paths, nil
+}
+
 // LastFetch returns when the repository was last fetched, or the zero time if
 // it never was.
 func (r *Repo) LastFetch(ctx context.Context) (time.Time, error) {

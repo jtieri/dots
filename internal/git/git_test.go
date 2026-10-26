@@ -190,3 +190,184 @@ func assertAheadBehind(t *testing.T, r *Repo, wantAhead, wantBehind int) {
 		t.Errorf("AheadBehind() = %d, %d, %v; want %d, %d", ahead, behind, err, wantAhead, wantBehind)
 	}
 }
+
+// pushFromElsewhere commits changes to the repo in another clone of its
+// remote and pushes them, as another machine would. changes maps paths in the
+// repo to their new contents; an empty string deletes the file.
+func pushFromElsewhere(t *testing.T, d *testenv.Dotfiles, changes map[string]string) {
+	t.Helper()
+	other := filepath.Join(t.TempDir(), "other")
+	testenv.Run(t, d.Home, "git", "clone", "--quiet", d.Remote, other)
+	for name, data := range changes {
+		if data == "" {
+			testenv.Run(t, other, "git", "rm", "--quiet", name)
+			continue
+		}
+		testenv.WriteFile(t, filepath.Join(other, name), data)
+	}
+	testenv.Run(t, other, "git", "add", "--all")
+	testenv.Run(t, other, "git", "commit", "--quiet", "--message=elsewhere")
+	testenv.Run(t, other, "git", "push", "--quiet")
+}
+
+func TestFastForward(t *testing.T) {
+	tests := []struct {
+		name string
+		// setup changes the repo, its remote, or both, before the fetch.
+		setup     func(t *testing.T, d *testenv.Dotfiles)
+		want      int
+		wantAhead int
+	}{
+		{
+			name:  "up to date",
+			setup: func(*testing.T, *testenv.Dotfiles) {},
+		},
+		{
+			name: "behind",
+			setup: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
+				pushFromElsewhere(t, d, map[string]string{"home/dot_new": "new\n"})
+			},
+			want: 2,
+		},
+		{
+			name: "ahead only",
+			setup: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a from here\n")
+				d.Git(t, "commit", "--quiet", "--all", "--message=here")
+			},
+			wantAhead: 1,
+		},
+		{
+			name: "file deleted here and upstream",
+			setup: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				pushFromElsewhere(t, d, map[string]string{"home/dot_a": ""})
+				if err := os.Remove(filepath.Join(d.Source, "dot_a")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n"})
+			tt.setup(t, d)
+			// An uncommitted change the upstream leaves alone survives.
+			testenv.WriteFile(t, filepath.Join(d.Source, "dot_b"), "b edited here\n")
+			d.Git(t, "fetch", "--quiet")
+			r := &Repo{Dir: d.Repo}
+
+			got, err := r.FastForward(t.Context())
+			if err != nil || got != tt.want {
+				t.Fatalf("FastForward() = %d, %v; want %d, nil", got, err, tt.want)
+			}
+			assertAheadBehind(t, r, tt.wantAhead, 0)
+			if data, err := os.ReadFile(filepath.Join(d.Source, "dot_b")); err != nil || string(data) != "b edited here\n" {
+				t.Errorf("uncommitted change after FastForward() = %q, %v; want it kept", data, err)
+			}
+			if got, want := d.Git(t, "status", "--porcelain"), " M home/dot_b\n"; got != want {
+				t.Errorf("git status after FastForward() = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestFastForwardDiverged(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n"})
+	pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_b"), "b from here\n")
+	d.Git(t, "commit", "--quiet", "--all", "--message=here")
+	d.Git(t, "fetch", "--quiet")
+	r := &Repo{Dir: d.Repo}
+
+	_, err := r.FastForward(t.Context())
+	if divErr, ok := errors.AsType[*DivergedError](err); !ok || *divErr != (DivergedError{Ahead: 1, Behind: 1}) {
+		t.Fatalf("FastForward() error = %v, want a *DivergedError with 1 and 1", err)
+	}
+	assertAheadBehind(t, r, 1, 1)
+}
+
+func TestFastForwardBlocked(t *testing.T) {
+	tests := []struct {
+		name string
+		// change makes an uncommitted change that the upstream would
+		// overwrite. The upstream changes home/dot_a, adds home/dot_new and
+		// renames home/dot_r.
+		change    func(t *testing.T, d *testenv.Dotfiles)
+		wantPaths []string
+	}{
+		{
+			name: "edited",
+			change: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a edited here\n")
+			},
+			wantPaths: []string{"home/dot_a"},
+		},
+		{
+			name: "untracked",
+			change: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				testenv.WriteFile(t, filepath.Join(d.Source, "dot_new"), "new here\n")
+			},
+			wantPaths: []string{"home/dot_new"},
+		},
+		{
+			name: "renamed",
+			change: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				d.Git(t, "mv", "home/dot_a", "home/private_dot_a")
+			},
+			wantPaths: []string{"home/dot_a"},
+		},
+		{
+			name: "edited where the upstream renames it",
+			change: func(t *testing.T, d *testenv.Dotfiles) {
+				t.Helper()
+				testenv.WriteFile(t, filepath.Join(d.Source, "dot_r"), "r edited here\n")
+			},
+			wantPaths: []string{"home/dot_r"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_r": "r\n"})
+			pushFromElsewhere(t, d, map[string]string{
+				"home/dot_a":   "a from elsewhere\n",
+				"home/dot_new": "new\n",
+				"home/dot_r":   "",
+				"home/dot_r2":  "r\n",
+			})
+			d.Git(t, "fetch", "--quiet")
+			tt.change(t, d)
+			before := d.Git(t, "status", "--porcelain")
+			r := &Repo{Dir: d.Repo}
+
+			_, err := r.FastForward(t.Context())
+			blockedErr, ok := errors.AsType[*BlockedError](err)
+			if !ok {
+				t.Fatalf("FastForward() error = %v, want a *BlockedError", err)
+			}
+			if diff := cmp.Diff(tt.wantPaths, blockedErr.Paths); diff != "" {
+				t.Errorf("BlockedError.Paths mismatch (-want +got):\n%s", diff)
+			}
+			assertAheadBehind(t, r, 0, 1)
+			if after := d.Git(t, "status", "--porcelain"); after != before {
+				t.Errorf("uncommitted changes after FastForward() = %q, want them unchanged: %q", after, before)
+			}
+		})
+	}
+}
+
+func TestFastForwardNoUpstream(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
+	d.Git(t, "checkout", "--quiet", "-b", "local-only")
+	r := &Repo{Dir: d.Repo}
+	if _, err := r.FastForward(t.Context()); !errors.Is(err, ErrNoUpstream) {
+		t.Errorf("FastForward() error = %v, want ErrNoUpstream", err)
+	}
+}
