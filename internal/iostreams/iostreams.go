@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"io"
 	"os"
+
+	"golang.org/x/term"
 )
 
 // Streams holds the standard streams for a command.
@@ -13,11 +15,19 @@ type Streams struct {
 	In     io.Reader
 	Out    io.Writer
 	ErrOut io.Writer
+	// ErrIsTerminal reports whether ErrOut is a terminal, where someone
+	// is watching for messages and prompts.
+	ErrIsTerminal bool
 }
 
 // System returns Streams for the process's standard input, output and error.
 func System() *Streams {
-	return &Streams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	return &Streams{
+		In:            os.Stdin,
+		Out:           os.Stdout,
+		ErrOut:        os.Stderr,
+		ErrIsTerminal: term.IsTerminal(int(os.Stderr.Fd())),
+	}
 }
 
 // Test returns Streams backed by buffers, along with the buffers, so a test
