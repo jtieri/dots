@@ -74,8 +74,8 @@ func TestApplyAnswers(t *testing.T) {
 	}{
 		{name: "yes", input: "y\n", wantCode: exitOK, wantApplied: true},
 		{name: "yes in full", input: "Yes\n", wantCode: exitOK, wantApplied: true},
-		{name: "enter cancels", input: "\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed."},
-		{name: "no", input: "n\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed."},
+		{name: "enter cancels", input: "\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed in the home directory."},
+		{name: "no", input: "n\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed in the home directory."},
 		{name: "unknown answer, then no", input: "k\nn\n", wantCode: exitOutOfSync, wantErrOut: "Please answer with one of the letters in brackets."},
 		{name: "input ends", input: "", wantCode: exitError, wantErrOut: "dot: nothing applied: no answer was given"},
 	}

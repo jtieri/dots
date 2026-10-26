@@ -79,7 +79,7 @@ func (a *app) apply(ctx context.Context, flags applyFlags) error {
 		return err
 	}
 	if !ok {
-		fmt.Fprintln(a.streams.ErrOut, "Nothing changed.")
+		fmt.Fprintln(a.streams.ErrOut, "Nothing changed in the home directory.")
 		return errOutOfSync
 	}
 

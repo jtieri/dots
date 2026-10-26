@@ -85,7 +85,7 @@ making it.`,
 		"read settings from `file` instead of $DOT_CONFIG or ~/.config/dot/config.toml")
 	cmd.PersistentFlags().BoolVar(&a.streams.NoPager, "no-pager", false,
 		"print long output instead of showing it in $PAGER")
-	cmd.AddCommand(newApplyCmd(a), newStatusCmd(a))
+	cmd.AddCommand(newApplyCmd(a), newStatusCmd(a), newSyncCmd(a))
 	return cmd
 }
 
