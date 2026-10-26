@@ -136,7 +136,7 @@ func Check(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (*Report, er
 
 	r.Repo.Fetch.OK = fetchErr == nil
 	if fetchErr != nil {
-		r.Repo.Fetch.Error = reason(fetchErr)
+		r.Repo.Fetch.Error = run.Reason(fetchErr)
 	}
 	if r.Repo.Fetch.LastFetch, err = repo.LastFetch(ctx); err != nil {
 		return nil, err
@@ -315,17 +315,4 @@ func (r *Report) inSync() bool {
 		len(r.SetupSteps) == 0 &&
 		len(r.Leftovers) == 0 &&
 		len(r.ReplacedTemplates) == 0
-}
-
-// reason returns the line of a failed command's error output that says what
-// went wrong, or err's message for other errors.
-func reason(err error) string {
-	if runErr, ok := errors.AsType[*run.Error](err); ok {
-		for line := range strings.Lines(runErr.Stderr) {
-			if line = strings.TrimSpace(line); line != "" {
-				return line
-			}
-		}
-	}
-	return err.Error()
 }

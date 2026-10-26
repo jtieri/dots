@@ -42,3 +42,17 @@ func Output(cmd *exec.Cmd) ([]byte, error) {
 	}
 	return stdout.Bytes(), nil
 }
+
+// Reason returns the first line a failed command wrote to standard error,
+// which usually says what went wrong, or err's message when err is not an
+// *Error or the command wrote nothing.
+func Reason(err error) string {
+	if runErr, ok := errors.AsType[*Error](err); ok {
+		for line := range strings.Lines(runErr.Stderr) {
+			if line = strings.TrimSpace(line); line != "" {
+				return line
+			}
+		}
+	}
+	return err.Error()
+}
