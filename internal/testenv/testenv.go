@@ -185,3 +185,30 @@ func Running(pid int) bool {
 	_, after, _ := strings.Cut(string(data), ") ")
 	return after != "" && after[0] != 'Z'
 }
+
+// StartProgram starts a program named name that runs until the test ends, by
+// running a copy of sleep under that name. It is for tests that look for
+// running programs by name.
+func StartProgram(t *testing.T, name string) {
+	t.Helper()
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(sleep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(exe, data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(t.Context(), exe, "60")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+}
