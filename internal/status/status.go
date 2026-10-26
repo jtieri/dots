@@ -5,7 +5,6 @@ package status
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -116,14 +115,7 @@ func Check(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (*Report, er
 
 	var wg sync.WaitGroup
 	var fetchErr error
-	wg.Go(func() {
-		fctx, cancel := context.WithTimeout(ctx, opts.FetchTimeout)
-		defer cancel()
-		fetchErr = repo.Fetch(fctx)
-		if fetchErr != nil && errors.Is(fctx.Err(), context.DeadlineExceeded) {
-			fetchErr = fmt.Errorf("no answer from the remote within %v", opts.FetchTimeout)
-		}
-	})
+	wg.Go(func() { fetchErr = repo.Fetch(ctx, opts.FetchTimeout) })
 	err := r.checkLocal(ctx, d, opts)
 	wg.Wait()
 	if err != nil {

@@ -1,7 +1,6 @@
 package git
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -126,7 +125,7 @@ func TestRepo(t *testing.T) {
 		assertAheadBehind(t, r, 1, 0) // not fetched yet
 
 		before := time.Now().Add(-time.Second)
-		if err := r.Fetch(ctx); err != nil {
+		if err := r.Fetch(ctx, time.Minute); err != nil {
 			t.Fatalf("Fetch() error = %v", err)
 		}
 		assertAheadBehind(t, r, 1, 1)
@@ -146,23 +145,22 @@ func TestRepo(t *testing.T) {
 	t.Run("fetch from a missing remote fails", func(t *testing.T) {
 		d.Git(t, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
 		defer d.Git(t, "remote", "set-url", "origin", d.Remote)
-		if err := r.Fetch(ctx); err == nil {
+		if err := r.Fetch(ctx, time.Minute); err == nil {
 			t.Error("Fetch() error = nil, want an error")
 		}
 	})
 
-	t.Run("fetch gives up when the context is done", func(t *testing.T) {
+	t.Run("fetch gives up at the time limit", func(t *testing.T) {
 		// An ssh that never answers. It records its process ID, so the test
 		// can check it was killed along with git rather than left running.
 		pidFile := filepath.Join(t.TempDir(), "ssh.pid")
 		d.Git(t, "remote", "set-url", "origin", "ssh://git@example.invalid/dotfiles.git")
 		defer d.Git(t, "remote", "set-url", "origin", d.Remote)
 		t.Setenv("GIT_SSH_COMMAND", "echo $$ >"+pidFile+"; exec sleep 30 #")
-		ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-		defer cancel()
 		start := time.Now()
-		if err := r.Fetch(ctx); err == nil {
-			t.Error("Fetch() error = nil, want an error")
+		err := r.Fetch(ctx, 500*time.Millisecond)
+		if want := "no answer from the remote within 500ms"; err == nil || err.Error() != want {
+			t.Errorf("Fetch() error = %v, want %q", err, want)
 		}
 		if elapsed := time.Since(start); elapsed > 5*time.Second {
 			t.Errorf("Fetch() returned after %v, want soon after the deadline", elapsed)

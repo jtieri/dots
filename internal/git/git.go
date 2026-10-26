@@ -113,11 +113,14 @@ func (r *Repo) Branch(ctx context.Context) (string, error) {
 	return strings.TrimSuffix(string(out), "\n"), nil
 }
 
-// Fetch fetches the current branch's remote. git and ssh run without a
-// controlling terminal, so they cannot stop to ask for a password or
-// passphrase; one that is needed makes the fetch fail instead. When ctx is
-// done, git and everything it started are killed.
-func (r *Repo) Fetch(ctx context.Context) error {
+// Fetch fetches the current branch's remote, giving up after timeout. git
+// and ssh run without a controlling terminal, so they cannot stop to ask for
+// a password or passphrase; one that is needed makes the fetch fail instead.
+// When ctx is done or the time is up, git and everything it started are
+// killed.
+func (r *Repo) Fetch(ctx context.Context, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	cmd := r.command(ctx, "fetch", "--quiet")
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "SSH_ASKPASS_REQUIRE=never")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -127,6 +130,9 @@ func (r *Repo) Fetch(ctx context.Context) error {
 	}
 	cmd.WaitDelay = time.Second
 	_, err := run.Output(cmd)
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("no answer from the remote within %v", timeout)
+	}
 	return err
 }
 
