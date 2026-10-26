@@ -37,9 +37,7 @@ type Options struct {
 // before overwriting, or "" if none were made. A failed backup stops Apply
 // before anything is overwritten.
 func (p *Plan) Apply(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (backupFolder string, err error) {
-	changes := p.Rest()
 	if opts.Choice == Overwrite {
-		changes = p.Changes
 		if opts.BackupDir != "" {
 			var local []string
 			for _, c := range p.Local() {
@@ -51,11 +49,19 @@ func (p *Plan) Apply(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (b
 		}
 	}
 	return backupFolder, d.Chezmoi.Apply(ctx, chezmoi.ApplyOptions{
-		Targets: targets(d.Home, changes),
+		Targets: targets(d.Home, p.ToApply(opts.Choice)),
 		Force:   opts.Choice == Overwrite,
 		Stdout:  opts.Stdout,
 		Stderr:  opts.Stderr,
 	})
+}
+
+// ToApply returns the changes Apply makes for choice.
+func (p *Plan) ToApply(choice Choice) []Change {
+	if choice == Overwrite {
+		return p.Changes
+	}
+	return p.Rest()
 }
 
 // Diff returns, as a git-style diff, everything the plan would change.
