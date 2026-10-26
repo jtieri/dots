@@ -17,6 +17,7 @@ var defaults = Config{
 	Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh"}},
 	ModifyTemplates: []string{},
 	OverwriteBackup: OverwriteBackup{Enabled: true, KeepDays: 30},
+	RestartNotices:  []RestartNotice{},
 }
 
 // writeConfig writes the default configuration file.
@@ -49,6 +50,14 @@ skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
 [overwrite_backup]
 enabled = false
 keep_days = 0
+
+[[restart_notices]]
+program = "zed-editor"
+files = ["~/.config/zed/settings.json"]
+
+[[restart_notices]]
+program = "polybar"
+files = ["~/.config/polybar/config.ini", "~/.config/polybar/colors.ini"]
 `)
 	got, err := Load("")
 	if err != nil {
@@ -60,6 +69,10 @@ keep_days = 0
 		Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh", "Pictures"}},
 		ModifyTemplates: []string{".config/zed/settings.json"},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 0},
+		RestartNotices: []RestartNotice{
+			{Program: "zed-editor", Files: []string{".config/zed/settings.json"}},
+			{Program: "polybar", Files: []string{".config/polybar/config.ini", ".config/polybar/colors.ini"}},
+		},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
@@ -85,6 +98,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 		Leftovers:       Leftovers{Skip: []string{"a", "b c"}},
 		ModifyTemplates: []string{".config/zed/settings.json"},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 7},
+		RestartNotices:  []RestartNotice{},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
@@ -163,6 +177,11 @@ func TestLoadErrors(t *testing.T) {
 		{name: "negative days", file: "[overwrite_backup]\nkeep_days = -1\n", wantErr: "overwrite_backup.keep_days -1 must not be negative"},
 		{name: "bad environment bool", env: map[string]string{"DOT_OVERWRITE_BACKUP_ENABLED": "maybe"}, wantErr: "overwrite_backup.enabled"},
 		{name: "bad environment number", env: map[string]string{"DOT_OVERWRITE_BACKUP_KEEP_DAYS": "a month"}, wantErr: "overwrite_backup.keep_days"},
+		{name: "unknown key in a notice", file: "[[restart_notices]]\nprogram = \"zed\"\nfile = [\"~/x\"]\n", wantErr: "restart_notices[0]' has invalid keys: file"},
+		{name: "notice without files", file: "[[restart_notices]]\nprogram = \"zed\"\n", wantErr: "restart_notices[0]: files is empty"},
+		{name: "notice with a path for a program", file: "[[restart_notices]]\nprogram = \"/usr/bin/zed\"\nfiles = [\"~/x\"]\n", wantErr: "must be a process name"},
+		{name: "notice file outside home", file: "[[restart_notices]]\nprogram = \"zed\"\nfiles = [\"/etc/x\"]\n", wantErr: "restart_notices[0].files: \"/etc/x\""},
+		{name: "notices not a list", file: "restart_notices = \"zed\"\n", wantErr: "restart_notices"},
 		{name: "bad environment value", env: map[string]string{"DOT_FETCH_TIMEOUT": "soon"}, wantErr: "fetch_timeout"},
 	}
 	for _, tt := range tests {

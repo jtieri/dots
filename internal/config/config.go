@@ -33,6 +33,7 @@ type Config struct {
 	Leftovers       Leftovers       `mapstructure:"leftovers"`
 	ModifyTemplates []string        `mapstructure:"modify_templates"`
 	OverwriteBackup OverwriteBackup `mapstructure:"overwrite_backup"`
+	RestartNotices  []RestartNotice `mapstructure:"restart_notices"`
 }
 
 // Leftovers holds the settings for the leftovers check.
@@ -48,12 +49,20 @@ type OverwriteBackup struct {
 	KeepDays int `mapstructure:"keep_days"`
 }
 
+// A RestartNotice asks dot to say when a program should be restarted: when
+// applying changes one of Files while the program is running.
+type RestartNotice struct {
+	// Program is the program's process name, as ps shows it.
+	Program string   `mapstructure:"program"`
+	Files   []string `mapstructure:"files"`
+}
+
 // A Setting describes one setting, for loading it and for dot's help.
 type Setting struct {
 	// Key is the setting's name in the configuration file, with a dot
 	// between a table and the setting in it.
 	Key string
-	// Env is the environment variable that overrides the file.
+	// Env is the environment variable that overrides the file, if any.
 	Env string
 	// Default is the value used when neither sets it, written as it
 	// would be in the file.
@@ -101,6 +110,12 @@ var Settings = []Setting{
 		Default: 30,
 		Help:    "How many days to keep those copies. 0 keeps them forever.",
 	},
+	{
+		Key:     "restart_notices",
+		Default: []RestartNotice{},
+		Help: "Programs to restart after dot apply changes their files, as a list of tables " +
+			"with program (the process name) and files. dot says so when one is running.",
+	},
 }
 
 // EnvConfig names the environment variable that selects another
@@ -134,6 +149,9 @@ func Load(file string) (*Config, error) {
 	v := viper.New()
 	for _, s := range Settings {
 		v.SetDefault(s.Key, s.Default)
+		if s.Env == "" {
+			continue
+		}
 		if err := v.BindEnv(s.Key, s.Env); err != nil {
 			return nil, err
 		}
@@ -242,6 +260,19 @@ func (c *Config) check() error {
 	}
 	if c.ModifyTemplates, err = homePaths("modify_templates", c.ModifyTemplates); err != nil {
 		return err
+	}
+	for i := range c.RestartNotices {
+		n := &c.RestartNotices[i]
+		key := fmt.Sprintf("restart_notices[%d]", i)
+		if n.Program == "" || strings.Contains(n.Program, "/") {
+			return fmt.Errorf("%s: program %q must be a process name, such as zed-editor", key, n.Program)
+		}
+		if len(n.Files) == 0 {
+			return fmt.Errorf("%s: files is empty", key)
+		}
+		if n.Files, err = homePaths(key+".files", n.Files); err != nil {
+			return err
+		}
 	}
 	return nil
 }
