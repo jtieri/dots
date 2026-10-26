@@ -1,8 +1,12 @@
 package chezmoi
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -138,4 +142,137 @@ func TestClient(t *testing.T) {
 			t.Error("Status() error = nil, want an error")
 		}
 	})
+}
+
+func TestClientApply(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{
+		"dot_a": "a\n",
+		"dot_b": "b\n",
+		".chezmoiscripts/run_onchange_after_10-hello.sh": "#!/bin/sh\necho hello from the script\ntouch \"$HOME/.ran\"\n",
+	})
+	c := &Client{}
+	ctx := t.Context()
+	home := func(name string) string { return filepath.Join(d.Home, name) }
+	read := func(name string) string {
+		t.Helper()
+		data, err := os.ReadFile(home(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a from the repo\n")
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_b"), "b from the repo\n")
+
+	t.Run("no targets does nothing", func(t *testing.T) {
+		if err := c.Apply(ctx, ApplyOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		if read(".a") != "a\n" || read(".b") != "b\n" {
+			t.Error("Apply() with no targets changed files")
+		}
+	})
+
+	t.Run("only the targets", func(t *testing.T) {
+		var out strings.Builder
+		err := c.Apply(ctx, ApplyOptions{
+			Targets: []string{home(".a"), home(".chezmoiscripts/10-hello.sh")},
+			Stdout:  &out,
+			Stderr:  &out,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if read(".a") != "a from the repo\n" || read(".b") != "b\n" {
+			t.Errorf(".a = %q, .b = %q; want only .a applied", read(".a"), read(".b"))
+		}
+		if _, err := os.Stat(home(".ran")); err != nil {
+			t.Errorf("the script did not run: %v", err)
+		}
+		if !strings.Contains(out.String(), "hello from the script") {
+			t.Errorf("output = %q, want the script's output", out.String())
+		}
+	})
+
+	t.Run("changed here", func(t *testing.T) {
+		testenv.WriteFile(t, home(".b"), "b edited here\n")
+		err := c.Apply(ctx, ApplyOptions{Targets: []string{home(".b")}, Stdout: io.Discard, Stderr: io.Discard})
+		if err == nil {
+			t.Error("Apply() over a file changed here: error = nil, want an error")
+		}
+		if read(".b") != "b edited here\n" {
+			t.Errorf(".b = %q, want it left alone", read(".b"))
+		}
+		err = c.Apply(ctx, ApplyOptions{Targets: []string{home(".b")}, Force: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if read(".b") != "b from the repo\n" {
+			t.Errorf(".b = %q after Force, want the repo's version", read(".b"))
+		}
+	})
+}
+
+func TestClientInit(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{
+		".chezmoi.toml.tmpl": "sourceDir = {{ .chezmoi.config.sourceDir | quote }}\n[data]\n  fact = 1\n",
+	})
+	c := &Client{}
+	if err := c.Init(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(d.Home, ".config/chezmoi/chezmoi.toml")
+	before, err := os.ReadFile(config)
+	if err != nil || !strings.Contains(string(before), "fact = 1") {
+		t.Fatalf("config after Init() = %q, %v; want the template's facts", before, err)
+	}
+	testenv.WriteFile(t, filepath.Join(d.Source, ".chezmoi.toml.tmpl"),
+		"sourceDir = {{ .chezmoi.config.sourceDir | quote }}\n[data]\n  fact = 2\n")
+	if err := c.Init(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(config); !strings.Contains(string(after), "fact = 2") {
+		t.Errorf("config after a template change = %q, want the new fact", after)
+	}
+}
+
+func TestClientCatDiffAndEntryStates(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{
+		"dot_a":         "a\n",
+		"symlink_dot_l": "target",
+	})
+	c := &Client{}
+	ctx := t.Context()
+	a, l := filepath.Join(d.Home, ".a"), filepath.Join(d.Home, ".l")
+
+	states, err := c.EntryStates(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct{ path, typ, contents string }{{a, "file", "a\n"}, {l, "symlink", "target"}} {
+		got := states[tt.path]
+		sum := sha256.Sum256([]byte(tt.contents))
+		if got.Type != tt.typ || got.ContentsSHA256 != hex.EncodeToString(sum[:]) {
+			t.Errorf("EntryStates()[%s] = %+v, want type %s and the hash of %q", tt.path, got, tt.typ, tt.contents)
+		}
+	}
+
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a from the repo\n")
+	if got, err := c.Cat(ctx, a); err != nil || string(got) != "a from the repo\n" {
+		t.Errorf("Cat(.a) = %q, %v; want the repo's version", got, err)
+	}
+	if got, err := c.Cat(ctx, l); err != nil || strings.TrimSpace(string(got)) != "target" {
+		t.Errorf("Cat(.l) = %q, %v; want the link's target", got, err)
+	}
+
+	diff, err := c.Diff(ctx, []string{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(diff), "-a\n+a from the repo\n") {
+		t.Errorf("Diff() = %q, want the change from a to the repo's version", diff)
+	}
+	if diff, err := c.Diff(ctx, nil); err != nil || diff != nil {
+		t.Errorf("Diff(nil) = %q, %v; want nothing", diff, err)
+	}
 }
