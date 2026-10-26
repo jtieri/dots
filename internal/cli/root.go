@@ -31,10 +31,10 @@ var errOutOfSync = errors.New("out of sync")
 // Main runs dot with args and returns the process exit code. Ctrl-C cancels
 // the running command, which stops the programs it started.
 func Main(args []string, streams *iostreams.Streams) int {
-	return run(args, &app{streams: streams, euid: os.Geteuid()})
+	return execute(args, &app{streams: streams, euid: os.Geteuid()})
 }
 
-func run(args []string, a *app) int {
+func execute(args []string, a *app) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	defer a.close()

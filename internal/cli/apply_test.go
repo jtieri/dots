@@ -49,7 +49,7 @@ func (f *applyFixture) run(input string, terminal bool, args ...string) (code in
 	in.WriteString(input)
 	streams.InIsTerminal, streams.ErrIsTerminal = terminal, terminal
 	a := &app{streams: streams, euid: 1000, lockPath: filepath.Join(f.t.TempDir(), "lock")}
-	code = run(args, a)
+	code = execute(args, a)
 	return code, stdout.String(), stderr.String()
 }
 
