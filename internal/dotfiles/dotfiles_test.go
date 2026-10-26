@@ -39,3 +39,11 @@ func TestOpenSourceNotInRepo(t *testing.T) {
 		t.Errorf("Open() error = %v, want one saying it is not in a git repository", err)
 	}
 }
+
+func TestTilde(t *testing.T) {
+	for rel, want := range map[string]string{".": "~", ".bashrc": "~/.bashrc", ".config/i3/config": "~/.config/i3/config"} {
+		if got := Tilde(rel); got != want {
+			t.Errorf("Tilde(%q) = %q, want %q", rel, got, want)
+		}
+	}
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/jtieri/dot/internal/dotfiles"
 )
 
 // homeKinds gives the order and wording of the kinds of HomeChange.
@@ -48,7 +50,7 @@ func (r *Report) WriteText(w io.Writer) error {
 	for _, k := range homeKinds {
 		for _, c := range r.Home {
 			if c.Kind == k.kind {
-				home = append(home, fmt.Sprintf("%-25s %s", k.text, homePath(c.Path)))
+				home = append(home, fmt.Sprintf("%-25s %s", k.text, dotfiles.Tilde(c.Path)))
 			}
 		}
 	}
@@ -94,7 +96,7 @@ func (r *Report) repoLines() []string {
 		for _, u := range r.Repo.Uncommitted {
 			p := u.RepoPath
 			if u.HomePath != "" {
-				p = homePath(u.HomePath)
+				p = dotfiles.Tilde(u.HomePath)
 			}
 			if u.From != "" {
 				p += " (was " + u.From + ")"
@@ -112,12 +114,10 @@ func commits(n int) string {
 	return fmt.Sprintf("%d commits", n)
 }
 
-func homePath(p string) string { return "~/" + p }
-
 func homePaths(ps []string) []string {
 	out := make([]string, len(ps))
 	for i, p := range ps {
-		out[i] = homePath(p)
+		out[i] = dotfiles.Tilde(p)
 	}
 	return out
 }

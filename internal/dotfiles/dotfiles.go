@@ -45,3 +45,12 @@ func Open(ctx context.Context, home string, cz *chezmoi.Client) (*Dotfiles, erro
 	}
 	return &Dotfiles{Home: home, Source: source, Repo: &git.Repo{Dir: top}, Chezmoi: cz}, nil
 }
+
+// Tilde writes rel, a path relative to the home directory, the way people
+// read and write home paths: ~/rel, or ~ for the home directory itself.
+func Tilde(rel string) string {
+	if rel == "." {
+		return "~"
+	}
+	return "~/" + rel
+}
