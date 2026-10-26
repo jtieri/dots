@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jtieri/dot/internal/chezmoi"
 	"github.com/jtieri/dot/internal/dotfiles"
 	"github.com/jtieri/dot/internal/git"
 	"github.com/jtieri/dot/internal/run"
@@ -173,12 +172,6 @@ func (r *Report) checkUncommitted(ctx context.Context, d *dotfiles.Dotfiles) err
 	if err != nil {
 		return err
 	}
-	// The source directory's path within the repo, such as "home".
-	prefix, err := filepath.Rel(d.Repo.Dir, d.Source)
-	if err != nil {
-		return err
-	}
-	prefix = filepath.ToSlash(prefix)
 	for _, c := range changes {
 		u := Uncommitted{RepoPath: c.Path, From: c.OrigPath}
 		switch {
@@ -191,21 +184,10 @@ func (r *Report) checkUncommitted(ctx context.Context, d *dotfiles.Dotfiles) err
 		default:
 			u.Change = "modified"
 		}
-		if rel, ok := inDir(c.Path, prefix); ok {
-			u.HomePath, _ = chezmoi.TargetPath(rel)
-		}
+		u.HomePath, _ = d.HomePath(c.Path)
 		r.Repo.Uncommitted = append(r.Repo.Uncommitted, u)
 	}
 	return nil
-}
-
-// inDir reports whether the slash-separated path p is inside dir, and returns
-// it relative to dir.
-func inDir(p, dir string) (string, bool) {
-	if dir == "." {
-		return p, true
-	}
-	return strings.CutPrefix(p, dir+"/")
 }
 
 func (r *Report) checkHome(ctx context.Context, d *dotfiles.Dotfiles) error {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jtieri/dot/internal/chezmoi"
+	"github.com/jtieri/dot/internal/git"
 	"github.com/jtieri/dot/internal/testenv"
 )
 
@@ -37,6 +38,31 @@ func TestOpenSourceNotInRepo(t *testing.T) {
 	_, err := Open(t.Context(), home, &chezmoi.Client{})
 	if err == nil || !strings.Contains(err.Error(), "is not in a git repository") {
 		t.Errorf("Open() error = %v, want one saying it is not in a git repository", err)
+	}
+}
+
+func TestHomePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		source   string
+		repoPath string
+		want     string
+		wantOK   bool
+	}{
+		{"in the source directory", "/repo/home", "home/dot_config/i3/config", ".config/i3/config", true},
+		{"outside the source directory", "/repo/home", "scripts/setup.sh", "", false},
+		{"a folder that starts the same", "/repo/home", "homework/dot_bashrc", "", false},
+		{"a script", "/repo/home", "home/.chezmoiscripts/run_once_x.sh", "", false},
+		{"source directory is the repo", "/repo", "dot_bashrc", ".bashrc", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Dotfiles{Home: "/home/me", Source: tt.source, Repo: &git.Repo{Dir: "/repo"}}
+			got, ok := d.HomePath(tt.repoPath)
+			if got != tt.want || ok != tt.wantOK {
+				t.Errorf("HomePath(%q) = %q, %t; want %q, %t", tt.repoPath, got, ok, tt.want, tt.wantOK)
+			}
+		})
 	}
 }
 
