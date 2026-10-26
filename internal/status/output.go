@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dot/internal/text"
 )
 
 // homeKinds gives the order and wording of the kinds of HomeChange.
@@ -77,10 +78,10 @@ func (r *Report) repoLines() []string {
 		lines = append(lines, "The branch is not tracking a remote branch.")
 	}
 	if r.Repo.Ahead > 0 {
-		lines = append(lines, commits(r.Repo.Ahead)+" not pushed.")
+		lines = append(lines, text.Pluralize(r.Repo.Ahead, "commit")+" not pushed.")
 	}
 	if r.Repo.Behind > 0 {
-		lines = append(lines, commits(r.Repo.Behind)+" not pulled.")
+		lines = append(lines, text.Pluralize(r.Repo.Behind, "commit")+" not pulled.")
 	}
 	if !r.Repo.Fetch.OK {
 		line := "Could not fetch from the remote: " + r.Repo.Fetch.Error + "."
@@ -105,13 +106,6 @@ func (r *Report) repoLines() []string {
 		}
 	}
 	return lines
-}
-
-func commits(n int) string {
-	if n == 1 {
-		return "1 commit"
-	}
-	return fmt.Sprintf("%d commits", n)
 }
 
 func homePaths(ps []string) []string {
