@@ -27,8 +27,7 @@ const Version = 1
 // machine.
 var ErrNotSetUp = errors.New("chezmoi is not set up on this machine; run chezmoi init first")
 
-// Options control what Check looks at. The zero value is not usable; start
-// from DefaultOptions.
+// Options control what Check looks at. dot fills them from its settings.
 type Options struct {
 	// Home is the home directory.
 	Home string
@@ -43,17 +42,6 @@ type Options struct {
 	// ModifyTemplates are files, relative to Home, that the repo must keep
 	// as chezmoi modify templates. A plain copy in their place is reported.
 	ModifyTemplates []string
-}
-
-// DefaultOptions returns the options dot uses when its configuration sets
-// nothing.
-func DefaultOptions(home string) Options {
-	return Options{
-		Home:         home,
-		Branch:       "main",
-		FetchTimeout: 10 * time.Second,
-		SkipDirs:     []string{".", ".config", ".ssh"},
-	}
 }
 
 // A Report holds everything Check found. Paths in the home directory are

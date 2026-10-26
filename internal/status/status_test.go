@@ -32,9 +32,13 @@ var files = map[string]string{
 var ignoreTimes = cmpopts.IgnoreFields(Fetch{}, "LastFetch")
 
 func options(d *testenv.Dotfiles) Options {
-	opts := DefaultOptions(d.Home)
-	opts.ModifyTemplates = []string{".config/zed/settings.json"}
-	return opts
+	return Options{
+		Home:            d.Home,
+		Branch:          "main",
+		FetchTimeout:    10 * time.Second,
+		SkipDirs:        []string{".", ".config", ".ssh"},
+		ModifyTemplates: []string{".config/zed/settings.json"},
+	}
 }
 
 func TestCheckInSync(t *testing.T) {
@@ -219,8 +223,8 @@ func TestCheckFetchFails(t *testing.T) {
 }
 
 func TestCheckNotSetUp(t *testing.T) {
-	testenv.Isolate(t)
-	_, err := Check(t.Context(), &chezmoi.Client{}, DefaultOptions(os.Getenv("HOME")))
+	home := testenv.Isolate(t)
+	_, err := Check(t.Context(), &chezmoi.Client{}, Options{Home: home, Branch: "main", FetchTimeout: time.Second})
 	if !errors.Is(err, ErrNotSetUp) {
 		t.Errorf("Check() error = %v, want ErrNotSetUp", err)
 	}
@@ -231,7 +235,7 @@ func TestCheckSourceNotInRepo(t *testing.T) {
 	source := filepath.Join(home, "plain")
 	testenv.WriteFile(t, filepath.Join(source, "dot_bashrc"), "x")
 	testenv.WriteFile(t, filepath.Join(home, ".config/chezmoi/chezmoi.toml"), "sourceDir = \""+source+"\"\n")
-	_, err := Check(t.Context(), &chezmoi.Client{}, DefaultOptions(home))
+	_, err := Check(t.Context(), &chezmoi.Client{}, Options{Home: home, Branch: "main", FetchTimeout: time.Second})
 	if err == nil || !strings.Contains(err.Error(), "is not in a git repository") {
 		t.Errorf("Check() error = %v, want one saying it is not in a git repository", err)
 	}
