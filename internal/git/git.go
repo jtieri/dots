@@ -18,6 +18,10 @@ import (
 	"github.com/jtieri/dot/internal/run"
 )
 
+// stopGrace is how long git has to stop after being interrupted before it
+// is killed, for commands that change the repo.
+const stopGrace = 5 * time.Second
+
 // ErrNoUpstream is returned when the current branch tracks no remote branch.
 var ErrNoUpstream = errors.New("the branch has no upstream")
 
@@ -208,7 +212,13 @@ func (r *Repo) FastForward(ctx context.Context) (int, error) {
 	case ahead > 0:
 		return 0, &DivergedError{Ahead: ahead, Behind: behind}
 	}
-	if _, err := r.output(ctx, "merge", "--ff-only", "--quiet", "@{upstream}"); err != nil {
+	cmd := r.command(ctx, "merge", "--ff-only", "--quiet", "@{upstream}")
+	// Killed while it writes the working tree, git would leave its lock
+	// file behind and block every later git command. Interrupted as Ctrl-C
+	// would, it removes the lock before exiting.
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = stopGrace
+	if _, err := run.Output(cmd); err != nil {
 		// git decides what blocks it, and is more lenient than an overlap:
 		// it allows a file deleted here that the upstream deletes too. The
 		// overlap only names the files once git has refused.

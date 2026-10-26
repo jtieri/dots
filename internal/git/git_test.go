@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -370,4 +371,64 @@ func TestFastForwardNoUpstream(t *testing.T) {
 	if _, err := r.FastForward(t.Context()); !errors.Is(err, ErrNoUpstream) {
 		t.Errorf("FastForward() error = %v, want ErrNoUpstream", err)
 	}
+}
+
+// TestFastForwardInterrupt checks that when ctx is done, the merge is
+// interrupted as Ctrl-C would rather than killed, so git can clean up.
+func TestFastForwardInterrupt(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
+	pushFromElsewhere(t, d, map[string]string{"home/dot_a": "a from elsewhere\n"})
+	d.Git(t, "fetch", "--quiet")
+
+	// A git that hangs in merge until interrupted, and records that it was.
+	dir := t.TempDir()
+	pidFile, mark := filepath.Join(dir, "merge.pid"), filepath.Join(dir, "interrupted")
+	program := filepath.Join(dir, "git")
+	testenv.WriteFile(t, program, "#!/bin/sh\n"+
+		"case \" $* \" in\n"+
+		"*\" merge \"*)\n"+
+		"  trap 'kill $!; touch "+mark+"; exit 130' INT\n"+
+		"  sleep 30 &\n"+
+		"  echo $$ >"+pidFile+"\n"+
+		"  wait\n"+
+		"  exit 0 ;;\n"+
+		"esac\n"+
+		"exec git \"$@\"\n")
+	if err := os.Chmod(program, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := &Repo{Dir: d.Repo, Program: program}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan error)
+	go func() {
+		_, err := r.FastForward(ctx)
+		done <- err
+	}()
+	waitForFile(t, pidFile)
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("FastForward() error = nil, want an error")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("FastForward() did not return after ctx was canceled")
+	}
+	if _, err := os.Stat(mark); err != nil {
+		t.Errorf("git was not interrupted: %v", err)
+	}
+}
+
+// waitForFile waits for a line to be written to name.
+func waitForFile(t *testing.T, name string) {
+	t.Helper()
+	for range 500 {
+		if data, err := os.ReadFile(name); err == nil && strings.HasSuffix(string(data), "\n") {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("nothing written to %s", name)
 }
