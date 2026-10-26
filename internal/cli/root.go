@@ -83,7 +83,9 @@ making it.`,
 	cmd.SetVersionTemplate("dot {{.Version}}\n")
 	cmd.PersistentFlags().StringVar(&a.configFile, "config", "",
 		"read settings from `file` instead of $DOT_CONFIG or ~/.config/dot/config.toml")
-	cmd.AddCommand(newStatusCmd(a))
+	cmd.PersistentFlags().BoolVar(&a.streams.NoPager, "no-pager", false,
+		"print long output instead of showing it in $PAGER")
+	cmd.AddCommand(newApplyCmd(a), newStatusCmd(a))
 	return cmd
 }
 

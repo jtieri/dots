@@ -1,0 +1,56 @@
+# A home that matches the repo has nothing to apply.
+dotfiles
+exitcode 0 dot apply
+stdout '^Nothing to apply; the home directory matches the repo\.$'
+
+# Without a terminal, dot apply shows the preview but changes nothing.
+cp newer $HOME/dotfiles/home/dot_profile
+mkdir $HOME/dotfiles/home/.chezmoiscripts
+cp setup.sh $HOME/dotfiles/home/.chezmoiscripts/run_onchange_after_10-setup.sh
+exitcode 2 dot apply
+cmp stdout preview.txt
+stderr '^dot: nothing applied: there is no terminal to ask at'
+cmp $HOME/.profile $HOME/dotfiles/home/dot_bashrc
+
+# --yes applies it, and the setup step runs.
+exitcode 0 dot apply --yes
+stdout '^Done\. The home directory matches the repo\.$'
+stderr 'setup step ran'
+cmp $HOME/.profile newer
+exitcode 0 dot apply
+stdout '^Nothing to apply'
+
+# A file changed here needs an answer for it too.
+cp edited $HOME/.bashrc
+cp newer $HOME/dotfiles/home/dot_bashrc
+exitcode 2 dot apply --yes
+stdout 'Changed both here and in the repo, would be replaced\n  ~/.bashrc'
+stderr 'add --keep-local or --overwrite-local'
+
+exitcode 0 dot apply --keep-local
+stdout '^Done\. 1 file still differs from the repo; dot status lists it\.$'
+cmp $HOME/.bashrc edited
+
+exitcode 0 dot apply --overwrite-local
+stderr '^Copies of the overwritten files are in '
+cmp $HOME/.bashrc newer
+exec sh -c 'cat $HOME/.local/state/dot/overwritten/*/.bashrc'
+cmp stdout edited
+
+-- newer --
+newer
+-- edited --
+edited here
+-- preview.txt --
+Will update
+  ~/.profile
+
+Will run setup steps
+  10-setup.sh
+-- home/dotfiles/home/dot_bashrc --
+shell
+-- home/dotfiles/home/dot_profile --
+shell
+-- setup.sh --
+#!/bin/sh
+echo setup step ran

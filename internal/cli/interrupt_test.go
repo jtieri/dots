@@ -3,8 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -27,17 +25,7 @@ func TestInterrupt(t *testing.T) {
 
 	// Once ssh has started, Main is waiting on the fetch and handling
 	// Ctrl-C itself, so the signal cannot kill the test.
-	var pid int
-	for range 500 {
-		if data, err := os.ReadFile(pidFile); err == nil && strings.HasSuffix(string(data), "\n") {
-			pid, _ = strconv.Atoi(strings.TrimSpace(string(data)))
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if pid == 0 {
-		t.Fatal("the fetch never started")
-	}
+	pid := waitForPID(t, pidFile)
 	if err := syscall.Kill(os.Getpid(), syscall.SIGINT); err != nil {
 		t.Fatal(err)
 	}
