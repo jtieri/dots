@@ -35,6 +35,12 @@ func Isolate(t *testing.T) string {
 	} {
 		unsetenv(t, name)
 	}
+	// dot's own settings.
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "DOT_") {
+			unsetenv(t, name)
+		}
+	}
 	return home
 }
 

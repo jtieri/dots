@@ -1,0 +1,225 @@
+// Package config loads dot's settings from its configuration file and the
+// environment.
+//
+// Each setting comes from, in increasing order of precedence, its default,
+// the configuration file, and its environment variable. The configuration
+// file is $XDG_CONFIG_HOME/dot/config.toml unless DOT_CONFIG or --config
+// names another. Settings are checked strictly: an unknown setting, a value
+// of the wrong type or a value out of range is an error, so a mistyped
+// setting can never be silently ignored.
+package config
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/go-viper/mapstructure/v2"
+	"github.com/spf13/viper"
+)
+
+// Config holds dot's settings. Paths in the home directory are relative to
+// it, with "." for the home directory itself.
+type Config struct {
+	Branch          string        `mapstructure:"branch"`
+	FetchTimeout    time.Duration `mapstructure:"fetch_timeout"`
+	Leftovers       Leftovers     `mapstructure:"leftovers"`
+	ModifyTemplates []string      `mapstructure:"modify_templates"`
+}
+
+// Leftovers holds the settings for the leftovers check.
+type Leftovers struct {
+	Skip []string `mapstructure:"skip"`
+}
+
+// A Setting describes one setting, for loading it and for dot's help.
+type Setting struct {
+	// Key is the setting's name in the configuration file, with a dot
+	// between a table and the setting in it.
+	Key string
+	// Env is the environment variable that overrides the file.
+	Env string
+	// Default is the value used when neither sets it, written as it
+	// would be in the file.
+	Default any
+	Help    string
+}
+
+// Settings lists every setting.
+var Settings = []Setting{
+	{
+		Key:     "branch",
+		Env:     "DOT_BRANCH",
+		Default: "main",
+		Help:    "The branch every machine should be on.",
+	},
+	{
+		Key:     "fetch_timeout",
+		Env:     "DOT_FETCH_TIMEOUT",
+		Default: "10s",
+		Help:    "How long to wait for the remote when fetching, such as \"10s\" or \"1m\".",
+	},
+	{
+		Key:     "leftovers.skip",
+		Env:     "DOT_LEFTOVERS_SKIP",
+		Default: []string{"~", "~/.config", "~/.ssh"},
+		Help: "Folders the leftovers check does not look in, because they hold personal files " +
+			"beside tracked ones. Setting it replaces the default list.",
+	},
+	{
+		Key:     "modify_templates",
+		Env:     "DOT_MODIFY_TEMPLATES",
+		Default: []string{},
+		Help:    "Files the repo keeps as chezmoi modify templates. dot warns when one is replaced by a plain copy.",
+	},
+}
+
+// EnvConfig names the environment variable that selects another
+// configuration file.
+const EnvConfig = "DOT_CONFIG"
+
+// DefaultPath returns the configuration file used when no other is named.
+func DefaultPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "dot", "config.toml"), nil
+}
+
+// Load loads the settings. If file is empty, Load reads the file named by
+// DOT_CONFIG, or the default file if that is unset; only the default file may
+// be missing.
+func Load(file string) (*Config, error) {
+	if file == "" {
+		file = os.Getenv(EnvConfig)
+	}
+	explicit := file != ""
+	if !explicit {
+		var err error
+		if file, err = DefaultPath(); err != nil {
+			return nil, err
+		}
+	}
+
+	v := viper.New()
+	for _, s := range Settings {
+		v.SetDefault(s.Key, s.Default)
+		if err := v.BindEnv(s.Key, s.Env); err != nil {
+			return nil, err
+		}
+	}
+	v.SetConfigFile(file)
+	v.SetConfigType("toml")
+	err := v.ReadInConfig()
+	switch {
+	case errors.Is(err, fs.ErrNotExist) && !explicit:
+	case err != nil:
+		return nil, fmt.Errorf("config file %s: %w", file, err)
+	default:
+		if err := checkKeys(v); err != nil {
+			return nil, fmt.Errorf("config file %s: %w", file, err)
+		}
+	}
+
+	var c Config
+	strict := func(dc *mapstructure.DecoderConfig) {
+		dc.WeaklyTypedInput = false
+		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			durationHook,
+			mapstructure.StringToSliceHookFunc(","),
+		)
+	}
+	if err := v.UnmarshalExact(&c, strict); err != nil {
+		return nil, fmt.Errorf("config: %s", decodeMessage(err))
+	}
+	if err := c.check(); err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
+	return &c, nil
+}
+
+// durationHook decodes a duration from a string such as "10s". It rejects a
+// bare number, which would otherwise be taken as nanoseconds.
+func durationHook(_, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeFor[time.Duration]() {
+		return data, nil
+	}
+	str, ok := data.(string)
+	if !ok {
+		return nil, fmt.Errorf("%v is not a duration; write it as a string such as \"10s\"", data)
+	}
+	return time.ParseDuration(str)
+}
+
+// decodeMessage returns the problems in a decoding error on one line,
+// without the heading mapstructure puts above them.
+func decodeMessage(err error) string {
+	_, problems, ok := strings.Cut(err.Error(), "error(s):")
+	if !ok {
+		return err.Error()
+	}
+	var lines []string
+	for line := range strings.Lines(problems) {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "; ")
+}
+
+// checkKeys reports a key in the file that is not a setting. UnmarshalExact
+// would catch it too, but with a less helpful message.
+func checkKeys(v *viper.Viper) error {
+	for _, key := range v.AllKeys() {
+		known := slices.ContainsFunc(Settings, func(s Setting) bool { return s.Key == key })
+		if !known && v.InConfig(key) {
+			return fmt.Errorf("unknown setting %q", key)
+		}
+	}
+	return nil
+}
+
+// check checks the values and turns home paths into paths relative to the
+// home directory.
+func (c *Config) check() error {
+	if c.Branch == "" || strings.ContainsAny(c.Branch, " \t\n") {
+		return fmt.Errorf("branch %q is not a branch name", c.Branch)
+	}
+	if c.FetchTimeout <= 0 {
+		return fmt.Errorf("fetch_timeout %v must be more than zero", c.FetchTimeout)
+	}
+	var err error
+	if c.Leftovers.Skip, err = homePaths("leftovers.skip", c.Leftovers.Skip); err != nil {
+		return err
+	}
+	if c.ModifyTemplates, err = homePaths("modify_templates", c.ModifyTemplates); err != nil {
+		return err
+	}
+	return nil
+}
+
+// homePaths turns paths written as "~" or "~/path" into paths relative to the
+// home directory.
+func homePaths(key string, paths []string) ([]string, error) {
+	out := make([]string, 0, len(paths))
+	for _, p := range paths {
+		rel, ok := strings.CutPrefix(p, "~/")
+		if p == "~" {
+			rel, ok = ".", true
+		}
+		rel = path.Clean(rel)
+		if !ok || rel == ".." || strings.HasPrefix(rel, "../") || path.IsAbs(rel) {
+			return nil, fmt.Errorf("%s: %q must be ~ or start with ~/ and stay inside the home directory", key, p)
+		}
+		out = append(out, rel)
+	}
+	return out, nil
+}
