@@ -6,11 +6,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/iostreams"
 	"github.com/jtieri/dot/internal/status"
 )
 
-func newStatusCmd(streams *iostreams.Streams) *cobra.Command {
+func newStatusCmd(a *app) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -19,8 +18,8 @@ func newStatusCmd(streams *iostreams.Streams) *cobra.Command {
 not yet pushed or pulled, files in the home directory that differ from the
 repo, setup steps waiting to run, and untracked files inside tracked folders.
 
-It fetches from the remote first, giving up after 10 seconds. It changes
-nothing else.
+It fetches from the remote first, giving up after fetch_timeout (10 seconds
+unless set). It changes nothing else.
 
 Exits 0 when everything is in sync, 1 when something is not, and 2 when
 the check itself failed.`,
@@ -30,14 +29,21 @@ the check itself failed.`,
 			if err != nil {
 				return err
 			}
-			report, err := status.Check(cmd.Context(), &chezmoi.Client{}, status.DefaultOptions(home))
+			opts := status.Options{
+				Home:            home,
+				Branch:          a.cfg.Branch,
+				FetchTimeout:    a.cfg.FetchTimeout,
+				SkipDirs:        a.cfg.Leftovers.Skip,
+				ModifyTemplates: a.cfg.ModifyTemplates,
+			}
+			report, err := status.Check(cmd.Context(), &chezmoi.Client{}, opts)
 			if err != nil {
 				return err
 			}
 			if asJSON {
-				err = report.WriteJSON(streams.Out)
+				err = report.WriteJSON(a.streams.Out)
 			} else {
-				err = report.WriteText(streams.Out)
+				err = report.WriteText(a.streams.Out)
 			}
 			if err != nil {
 				return err

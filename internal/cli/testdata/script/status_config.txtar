@@ -1,0 +1,80 @@
+# Settings come from ~/.config/dot/config.toml.
+dotfiles
+mkdir $HOME/Pictures/wallpapers/new
+cp photo $HOME/Pictures/wallpapers/new/photo.jpg
+cp photo $HOME/Pictures/holiday.jpg
+
+# By default ~/Pictures is checked, since it holds a tracked folder.
+exitcode 1 dot status
+stdout '~/Pictures/holiday.jpg'
+stdout '~/Pictures/wallpapers/new'
+
+# Skipping it leaves only the folder inside the tracked wallpapers folder.
+mkdir $HOME/.config/dot
+cp skip-pictures.toml $HOME/.config/dot/config.toml
+exitcode 1 dot status
+! stdout holiday
+stdout '~/Pictures/wallpapers/new'
+
+# A modify template replaced by a plain copy is reported.
+rm $HOME/Pictures/wallpapers/new
+cp templates.toml $HOME/.config/dot/config.toml
+exitcode 1 dot status
+cmp stdout want-templates.txt
+
+# The environment overrides the file. An empty variable counts as unset.
+env DOT_MODIFY_TEMPLATES=~/.config/zed/settings.json
+env DOT_LEFTOVERS_SKIP=~,~/.config,~/Pictures
+exitcode 0 dot status
+stdout '^In sync\.$'
+env DOT_MODIFY_TEMPLATES=
+exitcode 1 dot status
+stdout 'btop.conf'
+
+# DOT_CONFIG and --config choose another file; --config wins.
+env DOT_LEFTOVERS_SKIP=
+cp templates.toml other.toml
+env DOT_CONFIG=$WORK/other.toml
+exitcode 1 dot status
+stdout 'modify templates'
+exitcode 0 dot status --config $WORK/skip-pictures.toml
+env DOT_CONFIG=
+
+# Mistakes in the file stop dot with exit 2.
+cp typo.toml $HOME/.config/dot/config.toml
+exitcode 2 dot status
+! stdout .
+stderr '^dot: config file .*config.toml: unknown setting "leftovers.skp"$'
+
+cp bad-type.toml $HOME/.config/dot/config.toml
+exitcode 2 dot status
+stderr '^dot: config: ''fetch_timeout'' 10 is not a duration; write it as a string such as "10s"$'
+
+exitcode 2 dot status --config $WORK/missing.toml
+stderr 'missing.toml'
+
+-- photo --
+jpeg
+-- skip-pictures.toml --
+[leftovers]
+skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
+-- templates.toml --
+modify_templates = ["~/.config/zed/settings.json", "~/.config/btop/btop.conf"]
+[leftovers]
+skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
+-- typo.toml --
+[leftovers]
+skp = ["~/Pictures"]
+-- bad-type.toml --
+fetch_timeout = 10
+-- want-templates.txt --
+Should be modify templates, but the repo has plain copies
+  ~/.config/btop/btop.conf
+-- home/dotfiles/home/dot_bashrc --
+bashrc
+-- home/dotfiles/home/Pictures/wallpapers/japan.jpg --
+jpeg
+-- home/dotfiles/home/dot_config/zed/modify_settings.json --
+{{/* chezmoi:modify-template */}}{{ .chezmoi.stdin }}
+-- home/dotfiles/home/dot_config/btop/btop.conf --
+btop
