@@ -1,16 +1,19 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/jtieri/dot/internal/iostreams"
+	"github.com/jtieri/dot/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -28,17 +31,10 @@ func TestScripts(t *testing.T) {
 		Dir: filepath.Join("testdata", "script"),
 		Setup: func(env *testscript.Env) error {
 			home := filepath.Join(env.WorkDir, "home")
-			env.Setenv("HOME", home)
-			env.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-			env.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
-			env.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
-			env.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-			env.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-			env.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-			env.Setenv("GIT_AUTHOR_NAME", "Test")
-			env.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
-			env.Setenv("GIT_COMMITTER_NAME", "Test")
-			env.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
+			for _, kv := range testenv.Vars(home) {
+				name, value, _ := strings.Cut(kv, "=")
+				env.Setenv(name, value)
+			}
 			return os.MkdirAll(home, 0o755)
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
@@ -56,25 +52,10 @@ func cmdDotfiles(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Fatalf("usage: dotfiles")
 	}
 	home := ts.Getenv("HOME")
-	repo := filepath.Join(home, "dotfiles")
-	remote := ts.MkAbs("remote.git")
-	run := func(name string, args ...string) {
-		if err := ts.Exec(name, args...); err != nil {
-			ts.Fatalf("%s %v: %v\n%s", name, args, err, ts.ReadFile("stderr"))
-		}
+	env := append(testenv.Vars(home), "PATH="+ts.Getenv("PATH"))
+	if _, err := testenv.InitDotfiles(context.Background(), home, ts.MkAbs("remote.git"), env); err != nil {
+		ts.Fatalf("%v", err)
 	}
-	ts.Check(os.WriteFile(filepath.Join(repo, ".chezmoiroot"), []byte("home\n"), 0o644))
-	run("git", "-C", repo, "init", "--quiet", "--initial-branch=main")
-	run("git", "-C", repo, "add", ".")
-	run("git", "-C", repo, "commit", "--quiet", "--message=initial")
-	run("git", "init", "--quiet", "--bare", "--initial-branch=main", remote)
-	run("git", "-C", repo, "remote", "add", "origin", remote)
-	run("git", "-C", repo, "push", "--quiet", "--set-upstream", "origin", "main")
-	config := filepath.Join(home, ".config", "chezmoi")
-	ts.Check(os.MkdirAll(config, 0o755))
-	ts.Check(os.WriteFile(filepath.Join(config, "chezmoi.toml"),
-		[]byte("sourceDir = \""+repo+"\"\numask = 0o022\n"), 0o644))
-	run("chezmoi", "--no-tty", "apply", "--exclude=scripts")
 }
 
 // cmdExitCode runs a command like exec, and checks it exits with the given

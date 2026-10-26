@@ -2,40 +2,56 @@
 package testenv
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jtieri/dot/internal/run"
 )
 
-// Isolate points HOME and the XDG directories at a new temporary home, keeps
-// git from reading the user's configuration, and cuts the test off from the
-// desktop session, so nothing a test runs can touch the real home or reach
-// running programs. It returns the temporary home.
+// Vars returns the environment variables, as "name=value" pairs, that point
+// chezmoi and git at home and keep git from reading the user's configuration.
+func Vars(home string) []string {
+	return []string{
+		"HOME=" + home,
+		"XDG_CONFIG_HOME=" + filepath.Join(home, ".config"),
+		"XDG_DATA_HOME=" + filepath.Join(home, ".local", "share"),
+		"XDG_STATE_HOME=" + filepath.Join(home, ".local", "state"),
+		"XDG_CACHE_HOME=" + filepath.Join(home, ".cache"),
+		"GIT_CONFIG_GLOBAL=" + os.DevNull,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=Test",
+		"GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=Test",
+		"GIT_COMMITTER_EMAIL=test@example.com",
+	}
+}
+
+// sessionVars are the variables that would let a program reach the desktop
+// session or the user's own setup.
+var sessionVars = []string{
+	"DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "I3SOCK",
+	"SWAYSOCK", "SSH_AUTH_SOCK", "XDG_RUNTIME_DIR", "CHEZMOI_SOURCE_DIR",
+}
+
+// Isolate sets the variables from Vars for a new temporary home and unsets
+// those that would reach the desktop session or carry dot's own settings, so
+// nothing a test runs can touch the real home or running programs. It
+// returns the temporary home.
 func Isolate(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
-	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	t.Setenv("GIT_AUTHOR_NAME", "Test")
-	t.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
-	t.Setenv("GIT_COMMITTER_NAME", "Test")
-	t.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
-	for _, name := range []string{
-		"DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "I3SOCK",
-		"SWAYSOCK", "SSH_AUTH_SOCK", "XDG_RUNTIME_DIR", "CHEZMOI_SOURCE_DIR",
-	} {
+	for _, kv := range Vars(home) {
+		name, value, _ := strings.Cut(kv, "=")
+		t.Setenv(name, value)
+	}
+	for _, name := range sessionVars {
 		unsetenv(t, name)
 	}
-	// dot's own settings.
 	for _, kv := range os.Environ() {
 		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "DOT_") {
 			unsetenv(t, name)
@@ -67,32 +83,59 @@ type Dotfiles struct {
 
 // NewDotfiles isolates the test as Isolate does, then creates a Dotfiles
 // whose repo holds files, a map from paths in the source directory to their
-// contents. chezmoi's scripts are never run.
+// contents.
 func NewDotfiles(t *testing.T, files map[string]string) *Dotfiles {
 	t.Helper()
 	home := Isolate(t)
+	for name, data := range files {
+		WriteFile(t, filepath.Join(home, "dotfiles", "home", name), data)
+	}
+	d, err := InitDotfiles(t.Context(), home, filepath.Join(t.TempDir(), "dotfiles.git"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+// InitDotfiles turns home/dotfiles, with its source files already in its home
+// folder, into a repo whose origin is a new bare repo at remote. It then
+// configures chezmoi and applies the repo without running scripts. env is
+// the environment for git and chezmoi; nil means the current one.
+func InitDotfiles(ctx context.Context, home, remote string, env []string) (*Dotfiles, error) {
 	d := &Dotfiles{
 		Home:   home,
 		Repo:   filepath.Join(home, "dotfiles"),
-		Remote: filepath.Join(t.TempDir(), "dotfiles.git"),
+		Source: filepath.Join(home, "dotfiles", "home"),
+		Remote: remote,
 	}
-	d.Source = filepath.Join(d.Repo, "home")
-
-	WriteFile(t, filepath.Join(d.Repo, ".chezmoiroot"), "home\n")
-	for name, data := range files {
-		WriteFile(t, filepath.Join(d.Source, name), data)
+	if err := os.WriteFile(filepath.Join(d.Repo, ".chezmoiroot"), []byte("home\n"), 0o644); err != nil {
+		return nil, err
 	}
-	Run(t, d.Repo, "git", "init", "--quiet", "--initial-branch=main")
-	Run(t, d.Repo, "git", "add", ".")
-	Run(t, d.Repo, "git", "commit", "--quiet", "--message=initial")
-	Run(t, d.Repo, "git", "init", "--quiet", "--bare", "--initial-branch=main", d.Remote)
-	Run(t, d.Repo, "git", "remote", "add", "origin", d.Remote)
-	Run(t, d.Repo, "git", "push", "--quiet", "--set-upstream", "origin", "main")
-
-	WriteFile(t, filepath.Join(home, ".config", "chezmoi", "chezmoi.toml"),
-		"sourceDir = \""+d.Repo+"\"\numask = 0o022\n")
-	d.Chezmoi(t, "apply", "--exclude=scripts")
-	return d
+	config := filepath.Join(home, ".config", "chezmoi", "chezmoi.toml")
+	if err := os.MkdirAll(filepath.Dir(config), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(config, []byte("sourceDir = \""+d.Repo+"\"\numask = 0o022\n"), 0o644); err != nil {
+		return nil, err
+	}
+	steps := [][]string{
+		{"git", "init", "--quiet", "--initial-branch=main", d.Repo},
+		{"git", "-C", d.Repo, "add", "."},
+		{"git", "-C", d.Repo, "commit", "--quiet", "--message=initial"},
+		{"git", "init", "--quiet", "--bare", "--initial-branch=main", remote},
+		{"git", "-C", d.Repo, "remote", "add", "origin", remote},
+		{"git", "-C", d.Repo, "push", "--quiet", "--set-upstream", "origin", "main"},
+		{"chezmoi", "--no-tty", "apply", "--exclude=scripts"},
+	}
+	for _, args := range steps {
+		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+		cmd.Dir = home
+		cmd.Env = env
+		if _, err := run.Output(cmd); err != nil {
+			return nil, err
+		}
+	}
+	return d, nil
 }
 
 // Chezmoi runs chezmoi with args and fails the test if it fails. It never
@@ -114,11 +157,9 @@ func Run(t *testing.T, dir, name string, args ...string) string {
 	t.Helper()
 	cmd := exec.CommandContext(t.Context(), name, args...)
 	cmd.Dir = dir
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, err := run.Output(cmd)
 	if err != nil {
-		t.Fatalf("%s %s: %v\n%s", name, strings.Join(args, " "), err, stderr.String())
+		t.Fatal(err)
 	}
 	return string(out)
 }
