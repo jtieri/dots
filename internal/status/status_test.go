@@ -1,7 +1,6 @@
 package status
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/jtieri/dot/internal/chezmoi"
+	"github.com/jtieri/dot/internal/dotfiles"
 	"github.com/jtieri/dot/internal/testenv"
 )
 
@@ -31,9 +31,8 @@ var files = map[string]string{
 // ignoreTimes leaves out the fetch time, which the tests check separately.
 var ignoreTimes = cmpopts.IgnoreFields(Fetch{}, "LastFetch")
 
-func options(d *testenv.Dotfiles) Options {
+func options() Options {
 	return Options{
-		Home:            d.Home,
 		Branch:          "main",
 		FetchTimeout:    10 * time.Second,
 		SkipDirs:        []string{".", ".config", ".ssh"},
@@ -53,7 +52,7 @@ func TestCheckInSync(t *testing.T) {
 	}
 
 	start := time.Now().Add(-time.Second)
-	got, err := Check(t.Context(), &chezmoi.Client{}, options(d))
+	got, err := Check(t.Context(), open(t, d), options())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,10 +112,10 @@ func TestCheckFindsEverything(t *testing.T) {
 	testenv.WriteFile(t, src(".chezmoiscripts/run_onchange_after_10-setup.sh"), "#!/bin/sh\nexit 1\n")
 	testenv.WriteFile(t, filepath.Join(d.Repo, "scripts/tool.sh"), "#!/bin/sh\n")
 	// A file that should be a modify template but is tracked as a copy.
-	opts := options(d)
+	opts := options()
 	opts.ModifyTemplates = append(opts.ModifyTemplates, ".config/btop/btop.conf")
 
-	got, err := Check(t.Context(), &chezmoi.Client{}, opts)
+	got, err := Check(t.Context(), open(t, d), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +157,7 @@ func TestCheckFindsEverything(t *testing.T) {
 func TestCheckBranch(t *testing.T) {
 	d := testenv.NewDotfiles(t, files)
 	d.Git(t, "checkout", "--quiet", "-b", "experiment")
-	got, err := Check(t.Context(), &chezmoi.Client{}, options(d))
+	got, err := Check(t.Context(), open(t, d), options())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +167,7 @@ func TestCheckBranch(t *testing.T) {
 	}
 
 	d.Git(t, "checkout", "--quiet", "--detach")
-	got, err = Check(t.Context(), &chezmoi.Client{}, options(d))
+	got, err = Check(t.Context(), open(t, d), options())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,9 +203,9 @@ func TestCheckFetchFails(t *testing.T) {
 			if tt.sshCmd != "" {
 				t.Setenv("GIT_SSH_COMMAND", tt.sshCmd)
 			}
-			opts := options(d)
+			opts := options()
 			opts.FetchTimeout = 300 * time.Millisecond
-			got, err := Check(t.Context(), &chezmoi.Client{}, opts)
+			got, err := Check(t.Context(), open(t, d), opts)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -222,21 +221,12 @@ func TestCheckFetchFails(t *testing.T) {
 	}
 }
 
-func TestCheckNotSetUp(t *testing.T) {
-	home := testenv.Isolate(t)
-	_, err := Check(t.Context(), &chezmoi.Client{}, Options{Home: home, Branch: "main", FetchTimeout: time.Second})
-	if !errors.Is(err, ErrNotSetUp) {
-		t.Errorf("Check() error = %v, want ErrNotSetUp", err)
+// open opens the dotfiles in d.
+func open(t *testing.T, d *testenv.Dotfiles) *dotfiles.Dotfiles {
+	t.Helper()
+	got, err := dotfiles.Open(t.Context(), d.Home, &chezmoi.Client{})
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestCheckSourceNotInRepo(t *testing.T) {
-	home := testenv.Isolate(t)
-	source := filepath.Join(home, "plain")
-	testenv.WriteFile(t, filepath.Join(source, "dot_bashrc"), "x")
-	testenv.WriteFile(t, filepath.Join(home, ".config/chezmoi/chezmoi.toml"), "sourceDir = \""+source+"\"\n")
-	_, err := Check(t.Context(), &chezmoi.Client{}, Options{Home: home, Branch: "main", FetchTimeout: time.Second})
-	if err == nil || !strings.Contains(err.Error(), "is not in a git repository") {
-		t.Errorf("Check() error = %v, want one saying it is not in a git repository", err)
-	}
+	return got
 }

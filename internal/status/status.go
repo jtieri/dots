@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jtieri/dot/internal/chezmoi"
+	"github.com/jtieri/dot/internal/dotfiles"
 	"github.com/jtieri/dot/internal/git"
 	"github.com/jtieri/dot/internal/run"
 )
@@ -23,23 +23,17 @@ import (
 // field is removed or changes meaning.
 const Version = 1
 
-// ErrNotSetUp is returned when chezmoi has no source directory on this
-// machine.
-var ErrNotSetUp = errors.New("chezmoi is not set up on this machine; run chezmoi init first")
-
 // Options control what Check looks at. dot fills them from its settings.
 type Options struct {
-	// Home is the home directory.
-	Home string
 	// Branch is the branch every machine should be on.
 	Branch string
 	// FetchTimeout limits how long the fetch from the remote may take.
 	FetchTimeout time.Duration
-	// SkipDirs are folders, relative to Home, that the leftovers check
+	// SkipDirs are folders, relative to the home directory, that the leftovers check
 	// does not look in, because they hold personal files beside tracked
 	// ones. "." is Home itself.
 	SkipDirs []string
-	// ModifyTemplates are files, relative to Home, that the repo must keep
+	// ModifyTemplates are files, relative to the home directory, that the repo must keep
 	// as chezmoi modify templates. A plain copy in their place is reported.
 	ModifyTemplates []string
 }
@@ -112,24 +106,13 @@ type HomeChange struct {
 	Kind string `json:"kind"`
 }
 
-// Check gathers the report. The fetch runs alongside the local checks. A
-// failed fetch is recorded in the report rather than returned, since the
+// Check gathers the report on d. The fetch runs alongside the local checks.
+// A failed fetch is recorded in the report rather than returned, since the
 // local checks still hold.
-func Check(ctx context.Context, cz *chezmoi.Client, opts Options) (*Report, error) {
-	source, err := cz.SourceDir(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if info, err := os.Stat(source); errors.Is(err, fs.ErrNotExist) || (err == nil && !info.IsDir()) {
-		return nil, ErrNotSetUp
-	}
-	top, err := git.Toplevel(ctx, source)
-	if err != nil {
-		return nil, fmt.Errorf("chezmoi's source directory %s is not in a git repository: %w", source, err)
-	}
-	repo := &git.Repo{Dir: top}
+func Check(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (*Report, error) {
+	repo := d.Repo
 	r := &Report{Version: Version}
-	r.Repo.Path = top
+	r.Repo.Path = repo.Dir
 	r.Repo.WantBranch = opts.Branch
 
 	var wg sync.WaitGroup
@@ -142,7 +125,7 @@ func Check(ctx context.Context, cz *chezmoi.Client, opts Options) (*Report, erro
 			fetchErr = fmt.Errorf("no answer from the remote within %v", opts.FetchTimeout)
 		}
 	})
-	err = r.checkLocal(ctx, cz, repo, source, opts)
+	err := r.checkLocal(ctx, d, opts)
 	wg.Wait()
 	if err != nil {
 		return nil, err
@@ -168,30 +151,30 @@ func Check(ctx context.Context, cz *chezmoi.Client, opts Options) (*Report, erro
 	return r, nil
 }
 
-func (r *Report) checkLocal(ctx context.Context, cz *chezmoi.Client, repo *git.Repo, source string, opts Options) error {
+func (r *Report) checkLocal(ctx context.Context, d *dotfiles.Dotfiles, opts Options) error {
 	var err error
-	if r.Repo.Branch, err = repo.Branch(ctx); err != nil {
+	if r.Repo.Branch, err = d.Repo.Branch(ctx); err != nil {
 		return err
 	}
-	if err := r.checkUncommitted(ctx, repo, source); err != nil {
+	if err := r.checkUncommitted(ctx, d); err != nil {
 		return err
 	}
-	if err := r.checkHome(ctx, cz); err != nil {
+	if err := r.checkHome(ctx, d); err != nil {
 		return err
 	}
-	if err := r.checkLeftovers(ctx, cz, opts); err != nil {
+	if err := r.checkLeftovers(ctx, d, opts); err != nil {
 		return err
 	}
-	return r.checkTemplates(ctx, cz, opts)
+	return r.checkTemplates(ctx, d, opts)
 }
 
-func (r *Report) checkUncommitted(ctx context.Context, repo *git.Repo, source string) error {
-	changes, err := repo.Status(ctx)
+func (r *Report) checkUncommitted(ctx context.Context, d *dotfiles.Dotfiles) error {
+	changes, err := d.Repo.Status(ctx)
 	if err != nil {
 		return err
 	}
 	// The source directory's path within the repo, such as "home".
-	prefix, err := filepath.Rel(repo.Dir, source)
+	prefix, err := filepath.Rel(d.Repo.Dir, d.Source)
 	if err != nil {
 		return err
 	}
@@ -225,8 +208,8 @@ func inDir(p, dir string) (string, bool) {
 	return strings.CutPrefix(p, dir+"/")
 }
 
-func (r *Report) checkHome(ctx context.Context, cz *chezmoi.Client) error {
-	entries, err := cz.Status(ctx)
+func (r *Report) checkHome(ctx context.Context, d *dotfiles.Dotfiles) error {
+	entries, err := d.Chezmoi.Status(ctx)
 	if err != nil {
 		return err
 	}
@@ -256,31 +239,31 @@ func (r *Report) checkHome(ctx context.Context, cz *chezmoi.Client) error {
 // checkLeftovers looks directly inside each managed folder, other than the
 // skipped ones, for entries the repo does not track. Empty folders are left
 // out: apps create them, and they hold nothing worth keeping.
-func (r *Report) checkLeftovers(ctx context.Context, cz *chezmoi.Client, opts Options) error {
-	managed, err := cz.ManagedDirs(ctx)
+func (r *Report) checkLeftovers(ctx context.Context, d *dotfiles.Dotfiles, opts Options) error {
+	managed, err := d.Chezmoi.ManagedDirs(ctx)
 	if err != nil {
 		return err
 	}
 	skip := make(map[string]bool)
-	for _, d := range opts.SkipDirs {
-		skip[filepath.Join(opts.Home, d)] = true
+	for _, dir := range opts.SkipDirs {
+		skip[filepath.Join(d.Home, dir)] = true
 	}
 	checked := make(map[string]bool)
 	var dirs []string
-	for _, d := range managed {
-		d = filepath.Clean(d)
-		if skip[d] {
+	for _, dir := range managed {
+		dir = filepath.Clean(dir)
+		if skip[dir] {
 			continue
 		}
 		// chezmoi fails on a managed folder that is missing or no longer a
 		// folder. Those show up as differences instead.
-		if info, err := os.Lstat(d); err != nil || !info.IsDir() {
+		if info, err := os.Lstat(dir); err != nil || !info.IsDir() {
 			continue
 		}
-		checked[d] = true
-		dirs = append(dirs, d)
+		checked[dir] = true
+		dirs = append(dirs, dir)
 	}
-	unmanaged, err := cz.Unmanaged(ctx, dirs)
+	unmanaged, err := d.Chezmoi.Unmanaged(ctx, dirs)
 	if err != nil {
 		return err
 	}
@@ -290,7 +273,7 @@ func (r *Report) checkLeftovers(ctx context.Context, cz *chezmoi.Client, opts Op
 			continue
 		}
 		seen[p] = true
-		rel, err := filepath.Rel(opts.Home, p)
+		rel, err := filepath.Rel(d.Home, p)
 		if err != nil {
 			return err
 		}
@@ -309,9 +292,9 @@ func emptyDir(name string) bool {
 	return err == nil && len(entries) == 0
 }
 
-func (r *Report) checkTemplates(ctx context.Context, cz *chezmoi.Client, opts Options) error {
+func (r *Report) checkTemplates(ctx context.Context, d *dotfiles.Dotfiles, opts Options) error {
 	for _, target := range opts.ModifyTemplates {
-		src, err := cz.SourcePath(ctx, filepath.Join(opts.Home, target))
+		src, err := d.Chezmoi.SourcePath(ctx, filepath.Join(d.Home, target))
 		if err != nil {
 			// Not managed on this machine, for example ignored here.
 			continue

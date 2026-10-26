@@ -1,11 +1,8 @@
 package cli
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/chezmoi"
 	"github.com/jtieri/dot/internal/status"
 )
 
@@ -25,18 +22,13 @@ Exits 0 when everything is in sync, 1 when something is not, and 2 when
 the check itself failed.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return err
-			}
 			opts := status.Options{
-				Home:            home,
 				Branch:          a.cfg.Branch,
 				FetchTimeout:    a.cfg.FetchTimeout,
 				SkipDirs:        a.cfg.Leftovers.Skip,
 				ModifyTemplates: a.cfg.ModifyTemplates,
 			}
-			report, err := status.Check(cmd.Context(), &chezmoi.Client{}, opts)
+			report, err := status.Check(cmd.Context(), a.dotfiles, opts)
 			if err != nil {
 				return err
 			}
