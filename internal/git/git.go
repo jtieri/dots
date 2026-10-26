@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dot/internal/text"
 )
 
 // stopGrace is how long git has to stop after being interrupted before it
@@ -176,8 +177,8 @@ type DivergedError struct {
 }
 
 func (e *DivergedError) Error() string {
-	return fmt.Sprintf("the branch and its upstream have diverged: %d commits only on the branch, %d only on the upstream",
-		e.Ahead, e.Behind)
+	return fmt.Sprintf("the branch and its upstream have diverged: %s only on the branch, %d only on the upstream",
+		text.Pluralize(e.Ahead, "commit"), e.Behind)
 }
 
 // BlockedError is returned by FastForward when git refused to fast-forward

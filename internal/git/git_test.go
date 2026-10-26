@@ -266,6 +266,9 @@ func TestFastForwardDiverged(t *testing.T) {
 	if divErr, ok := errors.AsType[*DivergedError](err); !ok || *divErr != (DivergedError{Ahead: 1, Behind: 1}) {
 		t.Fatalf("FastForward() error = %v, want a *DivergedError with 1 and 1", err)
 	}
+	if want := "the branch and its upstream have diverged: 1 commit only on the branch, 1 only on the upstream"; err.Error() != want {
+		t.Errorf("FastForward() error = %q, want %q", err, want)
+	}
 	assertAheadBehind(t, r, 1, 1)
 }
 
