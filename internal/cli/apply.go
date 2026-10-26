@@ -46,13 +46,18 @@ was canceled, and 2 on errors.`,
 			return a.apply(cmd.Context(), flags)
 		},
 	}
-	cmd.Flags().BoolVarP(&flags.yes, "yes", "y", false, "apply without asking")
-	cmd.Flags().BoolVar(&flags.keepLocal, "keep-local", false,
+	flags.register(cmd)
+	return cmd
+}
+
+// register adds the flags to cmd, a command that applies the repo.
+func (f *applyFlags) register(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "apply without asking")
+	cmd.Flags().BoolVar(&f.keepLocal, "keep-local", false,
 		"keep files changed on this machine and apply the rest, without asking")
-	cmd.Flags().BoolVar(&flags.overwriteLocal, "overwrite-local", false,
+	cmd.Flags().BoolVar(&f.overwriteLocal, "overwrite-local", false,
 		"overwrite files changed on this machine too, without asking")
 	cmd.MarkFlagsMutuallyExclusive("keep-local", "overwrite-local")
-	return cmd
 }
 
 func (a *app) apply(ctx context.Context, flags applyFlags) error {
