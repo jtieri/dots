@@ -11,28 +11,30 @@ import (
 	"github.com/jtieri/dot/internal/testenv"
 )
 
-// applyFixture is a home where applying would update .update, and, once
-// changeHere is called, replace a file changed on this machine.
-type applyFixture struct {
+// fixture is a home set up by testenv.NewDotfiles, with helpers for running
+// dot in it.
+type fixture struct {
 	*testenv.Dotfiles
 	t *testing.T
 }
 
-func newApplyFixture(t *testing.T) *applyFixture {
+// newApplyFixture returns a home where applying would update .update, and,
+// once changeHere is called, replace a file changed on this machine.
+func newApplyFixture(t *testing.T) *fixture {
 	t.Helper()
 	d := testenv.NewDotfiles(t, map[string]string{"dot_update": "update\n", "dot_here": "here\n"})
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_update"), "update from the repo\n")
-	return &applyFixture{Dotfiles: d, t: t}
+	return &fixture{Dotfiles: d, t: t}
 }
 
 // changeHere edits ~/.here, so applying would replace a local change.
-func (f *applyFixture) changeHere() {
+func (f *fixture) changeHere() {
 	testenv.WriteFile(f.t, f.path(".here"), "edited here\n")
 }
 
-func (f *applyFixture) path(name string) string { return filepath.Join(f.Home, name) }
+func (f *fixture) path(name string) string { return filepath.Join(f.Home, name) }
 
-func (f *applyFixture) read(name string) string {
+func (f *fixture) read(name string) string {
 	f.t.Helper()
 	data, err := os.ReadFile(f.path(name))
 	if err != nil {
@@ -43,7 +45,7 @@ func (f *applyFixture) read(name string) string {
 
 // run runs dot with args, answering prompts with input. terminal says whether
 // stdin and stderr are terminals.
-func (f *applyFixture) run(input string, terminal bool, args ...string) (code int, out, errOut string) {
+func (f *fixture) run(input string, terminal bool, args ...string) (code int, out, errOut string) {
 	f.t.Helper()
 	streams, in, stdout, stderr := iostreams.Test()
 	in.WriteString(input)
@@ -55,7 +57,7 @@ func (f *applyFixture) run(input string, terminal bool, args ...string) (code in
 
 func TestApplyNothingToApply(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
-	f := &applyFixture{Dotfiles: d, t: t}
+	f := &fixture{Dotfiles: d, t: t}
 	code, out, _ := f.run("", false, "apply")
 	if code != exitOK || out != "Nothing to apply; the home directory matches the repo.\n" {
 		t.Errorf("apply = %d, %q; want 0 and nothing to apply", code, out)
