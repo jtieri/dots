@@ -50,14 +50,24 @@ func (p *Plan) Apply(ctx context.Context, d *dotfiles.Dotfiles, opts Options) (b
 			}
 		}
 	}
-	targets := make([]string, len(changes))
-	for i, c := range changes {
-		targets[i] = filepath.Join(d.Home, c.Path)
-	}
 	return backupFolder, d.Chezmoi.Apply(ctx, chezmoi.ApplyOptions{
-		Targets: targets,
+		Targets: targets(d.Home, changes),
 		Force:   opts.Choice == Overwrite,
 		Stdout:  opts.Stdout,
 		Stderr:  opts.Stderr,
 	})
+}
+
+// Diff returns, as a git-style diff, everything the plan would change.
+func (p *Plan) Diff(ctx context.Context, d *dotfiles.Dotfiles) ([]byte, error) {
+	return d.Chezmoi.Diff(ctx, targets(d.Home, p.Changes))
+}
+
+// targets returns the absolute paths changes apply to.
+func targets(home string, changes []Change) []string {
+	out := make([]string, len(changes))
+	for i, c := range changes {
+		out[i] = filepath.Join(home, c.Path)
+	}
+	return out
 }

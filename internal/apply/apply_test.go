@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,5 +136,18 @@ func TestApplyNothing(t *testing.T) {
 	plan := &Plan{}
 	if folder, err := plan.Apply(t.Context(), d, options(Overwrite, filepath.Join(d.Home, "backups"))); err != nil || folder != "" {
 		t.Errorf("Apply() of an empty plan = %q, %v; want nothing", folder, err)
+	}
+}
+
+func TestDiff(t *testing.T) {
+	d, plan := previewEveryKind(t)
+	diff, err := plan.Diff(t.Context(), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"-edited here\n+here\n", "+++ b/.new", "-update\n+update from the repo\n"} {
+		if !strings.Contains(string(diff), want) {
+			t.Errorf("Diff() lacks %q:\n%s", want, diff)
+		}
 	}
 }
