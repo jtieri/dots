@@ -347,6 +347,12 @@ func TestCaptureRefuses(t *testing.T) {
 			wantErr: "the repo makes ~/.m from home/modify_dot_m",
 		},
 		{
+			name:    "folder holding a modify template",
+			setup:   func(f *fixture) { testenv.WriteFile(f.t, f.home(".config/zed/settings.json"), "{}\n") },
+			target:  ".config/zed",
+			wantErr: "the repo keeps ~/.config/zed/settings.json as a modify template; capture it on its own",
+		},
+		{
 			name:   "create_ file",
 			setup:  func(f *fixture) { testenv.WriteFile(f.t, f.home(".c"), "edited\n") },
 			target: ".c",
@@ -431,6 +437,25 @@ func TestCaptureTemplate(t *testing.T) {
 		t.Errorf("template mode = %v, %v; want it kept", info.Mode(), err)
 	}
 	f.inSync(".config/zed/settings.json")
+}
+
+// TestCaptureTemplateRepoNewer checks that a theme switch since the last
+// apply is not taken for a change in the repo, while a repo change this
+// machine has not applied still is.
+func TestCaptureTemplateRepoNewer(t *testing.T) {
+	f := newFixture(t, nil)
+	settings := ".config/zed/settings.json"
+	edited := "// Zed settings\n{\n  \"theme\": {\n    \"dark\": \"Mine\"\n  },\n  \"ui_font_size\": 18\n}\n"
+	testenv.WriteFile(t, f.home(settings), edited)
+	if p := f.mustPreview(settings); p.RepoNewer != nil {
+		t.Errorf("RepoNewer after a theme switch = %v, want none", p.RepoNewer)
+	}
+
+	f = newFixture(t, nil)
+	testenv.WriteFile(t, f.source(zedSource), strings.Replace(zedHead+zedBody, "16", "20", 1))
+	if p := f.mustPreview(settings); !cmp.Equal(p.RepoNewer, []string{settings}) {
+		t.Errorf("RepoNewer after a repo change = %v, want [%s]", p.RepoNewer, settings)
+	}
 }
 
 func TestCaptureTemplateRefuses(t *testing.T) {

@@ -121,8 +121,14 @@ func (c *Capturer) Preview(ctx context.Context, target string) (*Plan, error) {
 		return nil, err
 	}
 	p := &Plan{Path: rel, target: target}
+	m, isTemplate := c.modifyTemplate(rel)
 	for _, ch := range c.pending.Changes {
-		repoChanged := ch.Kind == apply.Update || ch.Kind == apply.Delete || ch.Kind == apply.Conflict
+		// chezmoi cannot tell whether the repo changed a modify template
+		// that was also changed here: what the template produces follows
+		// the part each machine keeps, so it differs from what chezmoi
+		// last wrote whenever that part changed, as after a theme switch.
+		repoChanged := ch.Kind == apply.Update || ch.Kind == apply.Delete ||
+			(ch.Kind == apply.Conflict && !isTemplate)
 		if repoChanged && within(ch.Path, rel) {
 			p.RepoNewer = append(p.RepoNewer, ch.Path)
 		}
@@ -131,7 +137,7 @@ func (c *Capturer) Preview(ctx context.Context, target string) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	if m, ok := c.modifyTemplate(rel); ok {
+	if isTemplate {
 		return p, c.previewTemplate(ctx, p, m)
 	}
 	p.Diff, p.changes = diff.Text, diff.Changes
@@ -268,7 +274,11 @@ func (c *Capturer) checkChanges(p *Plan) error {
 		if !ok {
 			continue
 		}
+		_, isTemplate := c.modifyTemplate(target)
 		switch {
+		case isTemplate:
+			return fmt.Errorf("the repo keeps %s as a modify template; capture it on its own, "+
+				"so that dot rewrites the template", dotfiles.Tilde(target))
 		case attrs.Template || attrs.Modify:
 			return fmt.Errorf("the repo makes %s from %s, and capturing would replace it with a plain copy; "+
 				"edit that file instead", dotfiles.Tilde(target), c.repoPath(from))
