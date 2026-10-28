@@ -14,6 +14,7 @@ import (
 
 var defaults = Config{
 	Branch:          "main",
+	Capture:         Capture{Protected: []string{".ssh/id_*", ".gnupg"}},
 	FetchTimeout:    10 * time.Second,
 	Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh"}},
 	ModifyTemplates: []ModifyTemplate{},
@@ -44,6 +45,9 @@ func TestLoadFile(t *testing.T) {
 branch = "trunk"
 fetch_timeout = "1m30s"
 
+[capture]
+protected = ["~/.ssh/id_*", "~/.ssh/*.key", "~/.password-store"]
+
 [leftovers]
 skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
 
@@ -69,6 +73,7 @@ keep = '"theme"\s*:\s*\{[^{}]*\}'
 	}
 	want := &Config{
 		Branch:       "trunk",
+		Capture:      Capture{Protected: []string{".ssh/id_*", ".ssh/*.key", ".password-store"}},
 		FetchTimeout: 90 * time.Second,
 		Leftovers:    Leftovers{Skip: []string{".", ".config", ".ssh", "Pictures"}},
 		ModifyTemplates: []ModifyTemplate{
@@ -94,6 +99,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	t.Setenv("DOT_BRANCH", "env-branch")
 	t.Setenv("DOT_FETCH_TIMEOUT", "1m")
 	t.Setenv("DOT_LEFTOVERS_SKIP", "~/a,~/b c")
+	t.Setenv("DOT_CAPTURE_PROTECTED", "~/.ssh/k*")
 	t.Setenv("DOT_OVERWRITE_BACKUP_ENABLED", "false")
 	t.Setenv("DOT_OVERWRITE_BACKUP_KEEP_DAYS", "7")
 	got, err := Load("")
@@ -102,6 +108,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	}
 	want := &Config{
 		Branch:          "env-branch",
+		Capture:         Capture{Protected: []string{".ssh/k*"}},
 		FetchTimeout:    time.Minute,
 		Leftovers:       Leftovers{Skip: []string{"a", "b c"}},
 		ModifyTemplates: []ModifyTemplate{},
@@ -189,6 +196,8 @@ func TestLoadErrors(t *testing.T) {
 		{name: "notice without files", file: "[[restart_notices]]\nprogram = \"zed\"\n", wantErr: "restart_notices[0]: files is empty"},
 		{name: "notice with a path for a program", file: "[[restart_notices]]\nprogram = \"/usr/bin/zed\"\nfiles = [\"~/x\"]\n", wantErr: "must be a process name"},
 		{name: "notice file outside home", file: "[[restart_notices]]\nprogram = \"zed\"\nfiles = [\"/etc/x\"]\n", wantErr: "restart_notices[0].files: \"/etc/x\""},
+		{name: "bad pattern", file: "[capture]\nprotected = [\"~/.ssh/[\"]\n", wantErr: `capture.protected: "~/.ssh/[" is not a valid pattern`},
+		{name: "protected outside home", file: "[capture]\nprotected = [\"/etc/*\"]\n", wantErr: `capture.protected: "/etc/*" must be ~`},
 		{name: "notices not a list", file: "restart_notices = \"zed\"\n", wantErr: "restart_notices"},
 		{name: "template as a path", file: "modify_templates = [\"~/x\"]\n", wantErr: "modify_templates"},
 		{name: "template without keep", file: "[[modify_templates]]\nfile = \"~/x\"\n", wantErr: "modify_templates[0]: keep is missing"},

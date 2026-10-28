@@ -30,11 +30,20 @@ import (
 // it, with "." for the home directory itself.
 type Config struct {
 	Branch          string           `mapstructure:"branch"`
+	Capture         Capture          `mapstructure:"capture"`
 	FetchTimeout    time.Duration    `mapstructure:"fetch_timeout"`
 	Leftovers       Leftovers        `mapstructure:"leftovers"`
 	ModifyTemplates []ModifyTemplate `mapstructure:"modify_templates"`
 	OverwriteBackup OverwriteBackup  `mapstructure:"overwrite_backup"`
 	RestartNotices  []RestartNotice  `mapstructure:"restart_notices"`
+}
+
+// Capture holds the settings for dot capture.
+type Capture struct {
+	// Protected are patterns, as path.Match takes them, for files that are
+	// never captured. A pattern that matches a folder protects everything
+	// in it.
+	Protected []string `mapstructure:"protected"`
 }
 
 // Leftovers holds the settings for the leftovers check.
@@ -86,6 +95,14 @@ var Settings = []Setting{
 		Env:     "DOT_BRANCH",
 		Default: "main",
 		Help:    "The branch every machine should be on.",
+	},
+	{
+		Key:     "capture.protected",
+		Env:     "DOT_CAPTURE_PROTECTED",
+		Default: []string{"~/.ssh/id_*", "~/.gnupg"},
+		Help: "Files dot capture never copies into the repo, such as private keys. A * matches " +
+			"any part of a name, and a folder protects everything in it. Setting it replaces " +
+			"the default list.",
 	},
 	{
 		Key:     "fetch_timeout",
@@ -278,7 +295,15 @@ func (c *Config) check() error {
 	if c.OverwriteBackup.KeepDays < 0 {
 		return fmt.Errorf("overwrite_backup.keep_days %d must not be negative", c.OverwriteBackup.KeepDays)
 	}
+	for _, p := range c.Capture.Protected {
+		if _, err := path.Match(p, ""); err != nil {
+			return fmt.Errorf("capture.protected: %q is not a valid pattern", p)
+		}
+	}
 	var err error
+	if c.Capture.Protected, err = homePaths("capture.protected", c.Capture.Protected); err != nil {
+		return err
+	}
 	if c.Leftovers.Skip, err = homePaths("leftovers.skip", c.Leftovers.Skip); err != nil {
 		return err
 	}
