@@ -1,11 +1,14 @@
 package chezmoi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/jtieri/dot/internal/run"
 )
 
 // AddOptions control Add.
@@ -16,6 +19,9 @@ type AddOptions struct {
 	// drops a file's template or private attribute, and without Force such
 	// an add fails, since chezmoi is never given an answer. It drops a
 	// directory's private attribute without asking.
+	//
+	// chezmoi's own --force would also turn off its secret scanner, so
+	// Force answers the questions instead.
 	Force bool
 	// AllowSecrets adds a file even when chezmoi's scanner finds what looks
 	// like a secret in it. Without it, such an add fails.
@@ -72,18 +78,36 @@ func (c *Client) Add(ctx context.Context, target string, opts AddOptions) (*Sour
 	if opts.DryRun {
 		args = append(args, "--dry-run")
 	}
+	cmd := c.command(ctx, append(args, "--", target)...)
 	if opts.Force {
-		args = append(args, "--force")
+		cmd.Stdin = strings.NewReader("all\n")
 	}
-	out, err := c.output(ctx, append(args, "--", target)...)
+	out, err := run.Output(cmd)
 	if err != nil {
 		return nil, err
 	}
+	out = trimQuestions(out)
 	changes, err := parseAddDiff(string(out), sourceDir)
 	if err != nil {
 		return nil, err
 	}
 	return &SourceDiff{Changes: changes, Text: out}, nil
+}
+
+// question ends each question chezmoi asks. chezmoi writes its questions to
+// standard output, ahead of the diff.
+const question = " (yes/no/all/quit)? "
+
+// trimQuestions removes the questions at the start of out.
+func trimQuestions(out []byte) []byte {
+	for {
+		line, _, _ := bytes.Cut(out, []byte("\n"))
+		i := bytes.Index(line, []byte(question))
+		if i < 0 {
+			return out
+		}
+		out = out[i+len(question):]
+	}
 }
 
 // configuredSourceDir returns the source directory as chezmoi's configuration

@@ -131,6 +131,23 @@ func TestParseAddDiffErrors(t *testing.T) {
 	}
 }
 
+func TestTrimQuestions(t *testing.T) {
+	const diff = "diff --git a/x b/x\n+adding x would remove private attribute, continue (yes/no/all/quit)? \n"
+	tests := []struct{ out, want string }{
+		{"", ""},
+		{diff, diff},
+		{"adding .p would remove private attribute, continue (yes/no/all/quit)? " + diff, diff},
+		{"adding .a would remove private attribute, continue (yes/no/all/quit)? " +
+			"adding .b would remove template attribute, continue (yes/no/all/quit)? " + diff, diff},
+		{"adding .p would remove private attribute, continue (yes/no/all/quit)? ", ""},
+	}
+	for _, tt := range tests {
+		if got := string(trimQuestions([]byte(tt.out))); got != tt.want {
+			t.Errorf("trimQuestions(%q) = %q, want %q", tt.out, got, tt.want)
+		}
+	}
+}
+
 func TestClientAdd(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{
 		"dot_a":             "a\n",
@@ -199,15 +216,24 @@ func TestClientAdd(t *testing.T) {
 			t.Error("Add(.p) without Force: error = nil, want one")
 		}
 		got, err := c.Add(ctx, home(".p"), AddOptions{DryRun: true, Force: true})
+		if err != nil {
+			t.Fatal(err)
+		}
 		want := []SourceChange{{Kind: Created, Path: source("dot_p")}, {Kind: Deleted, Path: source("private_dot_p")}}
-		if diff := cmp.Diff(want, got.Changes); err != nil || diff != "" {
-			t.Errorf("Add(.p) error = %v, mismatch (-want +got):\n%s", err, diff)
+		if diff := cmp.Diff(want, got.Changes); diff != "" {
+			t.Errorf("Add(.p) mismatch (-want +got):\n%s", diff)
+		}
+		if !strings.HasPrefix(string(got.Text), "diff --git ") {
+			t.Errorf("Add(.p) text = %q, want only the diff", got.Text)
 		}
 		// chezmoi does not ask about a directory.
 		got, err = c.Add(ctx, home(".d"), AddOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
 		want = []SourceChange{{Kind: Renamed, Path: source("dot_d"), From: source("private_dot_d")}}
-		if diff := cmp.Diff(want, got.Changes); err != nil || diff != "" {
-			t.Errorf("Add(.d) error = %v, mismatch (-want +got):\n%s", err, diff)
+		if diff := cmp.Diff(want, got.Changes); diff != "" {
+			t.Errorf("Add(.d) mismatch (-want +got):\n%s", diff)
 		}
 		if read(source("dot_d/f")) != "f\n" {
 			t.Error("Add(.d) did not rename the folder")
@@ -231,6 +257,12 @@ func TestClientAdd(t *testing.T) {
 		if _, err := c.Add(ctx, home(".k"), AddOptions{DryRun: true}); err == nil ||
 			!strings.Contains(err.Error(), "Private Key") {
 			t.Errorf("Add() error = %v, want chezmoi's secret finding", err)
+		}
+		if _, err := c.Add(ctx, home(".k"), AddOptions{DryRun: true, Force: true}); err == nil {
+			t.Error("Add(Force) error = nil, want Force to leave the scanner on")
+		}
+		if _, err := c.Add(ctx, home(".k"), AddOptions{Force: true}); err == nil {
+			t.Error("Add(Force) error = nil, want the file refused")
 		}
 		if _, err := os.Stat(source("dot_k")); err == nil {
 			t.Error("Add() added a file with a secret in it")
