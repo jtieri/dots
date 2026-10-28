@@ -1,5 +1,3 @@
-// Package capture copies files changed in the home directory into the
-// dotfiles repo.
 package capture
 
 import (
