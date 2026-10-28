@@ -17,36 +17,43 @@ import (
 func TargetPath(sourceRel string) (target string, ok bool) {
 	parts := strings.Split(sourceRel, "/")
 	for i, part := range parts {
-		var name string
-		if i < len(parts)-1 {
-			name, ok = dirTarget(part)
-		} else {
-			name, ok = fileTarget(part)
+		if i == len(parts)-1 {
+			if parts[i], ok = fileTarget(part); !ok {
+				return "", false
+			}
+			break
 		}
-		if !ok {
+		var external bool
+		if parts[i], external, ok = dirTarget(part); !ok {
 			return "", false
 		}
-		parts[i] = name
+		if external {
+			// chezmoi copies everything inside an external_ directory as
+			// it is, names included.
+			break
+		}
 	}
 	return path.Join(parts...), true
 }
 
-// dirTarget returns the target name of a source directory. The prefixes are
-// stripped in the order chezmoi strips them.
-func dirTarget(name string) (string, bool) {
+// dirTarget returns the target name of a source directory, and whether it is
+// an external_ directory. The prefixes are stripped in the order chezmoi
+// strips them.
+func dirTarget(name string) (target string, external, ok bool) {
 	// chezmoi ignores names starting with a dot, and its own .chezmoi
 	// directories hold templates, scripts and the like rather than targets.
 	if name == "" || strings.HasPrefix(name, ".") {
-		return "", false
+		return "", false, false
 	}
 	if strings.HasPrefix(name, "remove_") {
-		return "", false
+		return "", false, false
 	}
-	name = strings.TrimPrefix(name, "external_")
+	name, external = strings.CutPrefix(name, "external_")
 	name = strings.TrimPrefix(name, "exact_")
 	name = strings.TrimPrefix(name, "private_")
 	name = strings.TrimPrefix(name, "readonly_")
-	return baseName(name)
+	target, ok = baseName(name)
+	return target, external, ok
 }
 
 // fileTarget returns the target name of a source file. The prefixes are

@@ -1,11 +1,13 @@
 package chezmoi
 
 import (
+	"encoding/json"
+	"fmt"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
+	"github.com/jtieri/dot/internal/run"
 	"github.com/jtieri/dot/internal/testenv"
 )
 
@@ -21,6 +23,8 @@ func TestTargetPath(t *testing.T) {
 		{"dot_config/i3/scripts/executable_lock.sh", ".config/i3/scripts/lock.sh"},
 		{"exact_dot_local/bin/readonly_tool", ".local/bin/tool"},
 		{"external_dot_oh-my-zsh/x", ".oh-my-zsh/x"},
+		{"external_dot_oh-my-zsh/dot_sub/private_x.tmpl", ".oh-my-zsh/dot_sub/private_x.tmpl"},
+		{"external_dot_d/.keep", ".d/.keep"},
 		{"symlink_dot_vimrc", ".vimrc"},
 		{"symlink_private_x", "private_x"},
 		{"create_empty_dot_hushlogin", ".hushlogin"},
@@ -59,17 +63,54 @@ func TestTargetPath(t *testing.T) {
 	}
 }
 
-// TestTargetPathMatchesChezmoi checks TargetPath against "chezmoi
-// target-path" for every combination of chezmoi's prefixes and suffixes.
-// target-path maps names only, so it also maps scripts and ignored names;
-// those are left out, as TargetPath rejects them on purpose.
+// TestTargetPathMatchesChezmoi checks TargetPath against chezmoi for every
+// combination of chezmoi's prefixes and suffixes, in every kind of directory.
+// "chezmoi managed" says what chezmoi really makes of each name. Names
+// TargetPath rejects are checked with "chezmoi target-path" instead, since an
+// invalid name stops managed from listing anything.
 func TestTargetPathMatchesChezmoi(t *testing.T) {
 	home := testenv.Isolate(t)
-	src := t.TempDir()
+	src, bad := t.TempDir(), t.TempDir()
 	config := filepath.Join(t.TempDir(), "chezmoi.toml")
 	// Encryption must be configured for chezmoi to drop the .age suffix.
 	testenv.WriteFile(t, config, "encryption = \"age\"\n[age]\nidentity = \"/nonexistent\"\nrecipient = \"age1x\"\n")
 
+	want := make(map[string]string) // source path to target
+	sources := sourceNames()
+	for i, s := range sources {
+		target, ok := TargetPath(s)
+		if !ok {
+			testenv.WriteFile(t, filepath.Join(bad, s), "")
+			if out, err := chezmoiTargetPath(t, home, bad, config, s); err == nil {
+				t.Errorf("TargetPath(%q) has no target, chezmoi says %q", s, out)
+			}
+			continue
+		}
+		// chezmoi refuses two names with the same target, so each name
+		// gets a folder of its own.
+		dir := fmt.Sprintf("n%d", i)
+		testenv.WriteFile(t, filepath.Join(src, dir, s), "")
+		want[dir+"/"+s] = dir + "/" + target
+	}
+	if len(want) < len(sources)/2 {
+		t.Fatalf("only %d of %d names have a target", len(want), len(sources))
+	}
+
+	got := make(map[string]string)
+	for target, paths := range chezmoiManaged(t, home, src, config, "files,symlinks") {
+		got[paths.SourceRelative] = target
+	}
+	for s, target := range want {
+		if got[s] != target {
+			t.Errorf("TargetPath(%q) = %q, chezmoi says %q", s, target, got[s])
+		}
+	}
+}
+
+// sourceNames returns every combination of chezmoi's prefixes and suffixes,
+// for files at the top of the source directory and in each kind of
+// directory, followed by names that produce no target.
+func sourceNames() []string {
 	dirs := []string{
 		"", "exact_", "private_", "readonly_", "external_", "dot_", "literal_",
 		"exact_private_dot_", "private_readonly_literal_dot_",
@@ -103,37 +144,29 @@ func TestTargetPathMatchesChezmoi(t *testing.T) {
 			sources = append(sources, f+b)
 		}
 	}
+	return sources
+}
 
-	var valid []string
-	for _, s := range sources {
-		testenv.WriteFile(t, filepath.Join(src, s), "")
-		if _, ok := TargetPath(s); ok {
-			valid = append(valid, s)
-		} else if out, err := chezmoiTargetPath(t, home, src, config, s); err == nil {
-			t.Errorf("TargetPath(%q) has no target, chezmoi says %q", s, out)
-		}
-	}
-	if len(valid) < len(sources)/2 {
-		t.Fatalf("only %d of %d names have a target", len(valid), len(sources))
-	}
+// managedPaths is how "chezmoi managed --path-style=all" describes a target.
+type managedPaths struct {
+	SourceRelative string `json:"sourceRelative"`
+}
 
-	out, err := chezmoiTargetPath(t, home, src, config, valid...)
+// chezmoiManaged returns the targets of the given types that chezmoi makes
+// from src, relative to home.
+func chezmoiManaged(t *testing.T, home, src, config, types string) map[string]managedPaths {
+	t.Helper()
+	out, err := run.Output(exec.CommandContext(t.Context(), "chezmoi", "--no-tty", "--config", config,
+		"--source", src, "--destination", home, "managed", "--include="+types,
+		"--path-style=all", "--format=json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-	if len(lines) != len(valid) {
-		t.Fatalf("chezmoi printed %d paths for %d names", len(lines), len(valid))
+	var managed map[string]managedPaths
+	if err := json.Unmarshal(out, &managed); err != nil {
+		t.Fatal(err)
 	}
-	for i, s := range valid {
-		want, err := filepath.Rel(home, lines[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got, _ := TargetPath(s); got != want {
-			t.Errorf("TargetPath(%q) = %q, chezmoi says %q", s, got, want)
-		}
-	}
+	return managed
 }
 
 func chezmoiTargetPath(t *testing.T, home, src, config string, sources ...string) (string, error) {
