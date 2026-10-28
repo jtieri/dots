@@ -62,6 +62,7 @@ func TestClient(t *testing.T) {
 		"dot_config/kitty/kitty.conf":         "kitty\n",
 		"dot_config/kitty/themes/x.conf":      "theme\n",
 		"dot_config/zed/modify_settings.json": "{{/* chezmoi:modify-template */}}{{ .chezmoi.stdin }}",
+		".chezmoiremove":                      ".old\n.gone\n",
 	})
 	c := &Client{}
 	ctx := t.Context()
@@ -99,10 +100,14 @@ func TestClient(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("Status() mismatch (-want +got):\n%s", diff)
 		}
+		got, err = c.Status(ctx, filepath.Join(d.Home, ".profile"), filepath.Join(d.Home, ".config/kitty"))
+		if diff := cmp.Diff(want[1:], got); err != nil || diff != "" {
+			t.Errorf("Status(.profile, .config/kitty) error = %v, mismatch (-want +got):\n%s", err, diff)
+		}
 	})
 
-	t.Run("ManagedDirs", func(t *testing.T) {
-		got, err := c.ManagedDirs(ctx)
+	t.Run("Managed dirs", func(t *testing.T) {
+		got, err := c.Managed(ctx, "dirs")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,7 +118,18 @@ func TestClient(t *testing.T) {
 			filepath.Join(d.Home, ".config/zed"),
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("ManagedDirs() mismatch (-want +got):\n%s", diff)
+			t.Errorf("Managed(dirs) mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("Managed remove", func(t *testing.T) {
+		old := filepath.Join(d.Home, ".old")
+		testenv.WriteFile(t, old, "old\n")
+		t.Cleanup(func() { os.Remove(old) })
+		got, err := c.Managed(ctx, "remove")
+		// .gone is not in the home directory.
+		if diff := cmp.Diff([]string{old}, got); err != nil || diff != "" {
+			t.Errorf("Managed(remove) error = %v, mismatch (-want +got):\n%s", err, diff)
 		}
 	})
 

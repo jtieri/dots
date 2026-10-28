@@ -91,9 +91,10 @@ type StatusEntry struct {
 	Path string
 }
 
-// Status returns what differs between the home directory and the repo.
-func (c *Client) Status(ctx context.Context) ([]StatusEntry, error) {
-	out, err := c.output(ctx, "status")
+// Status returns what differs between the home directory and the repo, for
+// targets if any are given, which are absolute paths in the home directory.
+func (c *Client) Status(ctx context.Context, targets ...string) ([]StatusEntry, error) {
+	out, err := c.output(ctx, append([]string{"status", "--"}, targets...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +113,12 @@ func parseStatus(out []byte) ([]StatusEntry, error) {
 	return entries, nil
 }
 
-// ManagedDirs returns the absolute paths of the directories chezmoi manages on
-// this machine.
-func (c *Client) ManagedDirs(ctx context.Context) ([]string, error) {
-	out, err := c.output(ctx, "managed", "--include=dirs", "--path-style=absolute", "-0")
+// Managed returns the absolute paths of the entries chezmoi manages on this
+// machine. types lists the kinds of entry, as chezmoi's --include flag takes
+// them: "dirs" for directories, or "remove" for the files .chezmoiremove
+// deletes that are in the home directory.
+func (c *Client) Managed(ctx context.Context, types string) ([]string, error) {
+	out, err := c.output(ctx, "managed", "--include="+types, "--path-style=absolute", "-0")
 	if err != nil {
 		return nil, err
 	}

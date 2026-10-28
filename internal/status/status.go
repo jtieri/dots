@@ -214,7 +214,7 @@ func (r *Report) checkHome(ctx context.Context, d *dotfiles.Dotfiles) error {
 // skipped ones, for entries the repo does not track. Empty folders are left
 // out: apps create them, and they hold nothing worth keeping.
 func (r *Report) checkLeftovers(ctx context.Context, d *dotfiles.Dotfiles, opts Options) error {
-	managed, err := d.Chezmoi.ManagedDirs(ctx)
+	managed, err := d.Chezmoi.Managed(ctx, "dirs")
 	if err != nil {
 		return err
 	}
