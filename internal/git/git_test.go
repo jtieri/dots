@@ -188,6 +188,23 @@ func assertAheadBehind(t *testing.T, r *Repo, wantAhead, wantBehind int) {
 	}
 }
 
+func TestDiffContents(t *testing.T) {
+	testenv.Isolate(t)
+	ctx := t.Context()
+	got, err := DiffContents(ctx, "home/dot_config/a b", []byte("one\ntwo\n"), []byte("one\n2\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"diff --git a/home/dot_config/a b b/home/dot_config/a b\n", "--- a/home/dot_config/a b\t\n", "-two\n+2\n"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("DiffContents() = %q, want it to contain %q", got, want)
+		}
+	}
+	if got, err := DiffContents(ctx, "x", []byte("same\n"), []byte("same\n")); err != nil || len(got) != 0 {
+		t.Errorf("DiffContents() of the same contents = %q, %v; want nothing", got, err)
+	}
+}
+
 func TestFastForward(t *testing.T) {
 	tests := []struct {
 		name string

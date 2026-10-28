@@ -59,6 +59,36 @@ func Toplevel(ctx context.Context, dir string) (string, error) {
 	return strings.TrimSuffix(string(out), "\n"), nil
 }
 
+// DiffContents returns, as a git diff, the change from the contents before to
+// the contents after of the file name, a slash-separated path such as a path
+// in the repo. It is empty when the contents are the same. No file is read.
+func DiffContents(ctx context.Context, name string, before, after []byte) ([]byte, error) {
+	dir, err := os.MkdirTemp("", "dot-diff-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+	for side, data := range map[string][]byte{"a": before, "b": after} {
+		file := filepath.Join(dir, side, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(file, data, 0o600); err != nil {
+			return nil, err
+		}
+	}
+	r := &Repo{Dir: dir}
+	// The sides are named a and b, so without git's own prefixes the
+	// diff reads as one of a repo file.
+	cmd := r.command(ctx, "diff", "--no-index", "--no-color", "--no-ext-diff", "--no-textconv",
+		"--no-prefix", "--", "a/"+name, "b/"+name)
+	out, err := run.Output(cmd)
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && exitErr.ExitCode() == 1 {
+		return out, nil // the contents differ
+	}
+	return out, err
+}
+
 // A Change is an uncommitted change to one path, as "git status" reports it.
 type Change struct {
 	// Index and Worktree are the two status letters: the change staged in
