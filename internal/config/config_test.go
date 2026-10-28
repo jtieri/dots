@@ -2,6 +2,7 @@ package config
 
 import (
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ var defaults = Config{
 	Branch:          "main",
 	FetchTimeout:    10 * time.Second,
 	Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh"}},
-	ModifyTemplates: []string{},
+	ModifyTemplates: []ModifyTemplate{},
 	OverwriteBackup: OverwriteBackup{Enabled: true, KeepDays: 30},
 	RestartNotices:  []RestartNotice{},
 }
@@ -42,7 +43,6 @@ func TestLoadFile(t *testing.T) {
 	writeConfig(t, home, `
 branch = "trunk"
 fetch_timeout = "1m30s"
-modify_templates = ["~/.config/zed/settings.json"]
 
 [leftovers]
 skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
@@ -58,26 +58,35 @@ files = ["~/.config/zed/settings.json"]
 [[restart_notices]]
 program = "polybar"
 files = ["~/.config/polybar/config.ini", "~/.config/polybar/colors.ini"]
+
+[[modify_templates]]
+file = "~/.config/zed/settings.json"
+keep = '"theme"\s*:\s*\{[^{}]*\}'
 `)
 	got, err := Load("")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := &Config{
-		Branch:          "trunk",
-		FetchTimeout:    90 * time.Second,
-		Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh", "Pictures"}},
-		ModifyTemplates: []string{".config/zed/settings.json"},
+		Branch:       "trunk",
+		FetchTimeout: 90 * time.Second,
+		Leftovers:    Leftovers{Skip: []string{".", ".config", ".ssh", "Pictures"}},
+		ModifyTemplates: []ModifyTemplate{
+			{File: ".config/zed/settings.json", Keep: regexp.MustCompile(`"theme"\s*:\s*\{[^{}]*\}`)},
+		},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 0},
 		RestartNotices: []RestartNotice{
 			{Program: "zed-editor", Files: []string{".config/zed/settings.json"}},
 			{Program: "polybar", Files: []string{".config/polybar/config.ini", ".config/polybar/colors.ini"}},
 		},
 	}
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmpRegexp); diff != "" {
 		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
 	}
 }
+
+// cmpRegexp compares regular expressions by their source text.
+var cmpRegexp = cmp.Comparer(func(a, b *regexp.Regexp) bool { return a.String() == b.String() })
 
 func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	home := testenv.Isolate(t)
@@ -85,7 +94,6 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	t.Setenv("DOT_BRANCH", "env-branch")
 	t.Setenv("DOT_FETCH_TIMEOUT", "1m")
 	t.Setenv("DOT_LEFTOVERS_SKIP", "~/a,~/b c")
-	t.Setenv("DOT_MODIFY_TEMPLATES", "~/.config/zed/settings.json")
 	t.Setenv("DOT_OVERWRITE_BACKUP_ENABLED", "false")
 	t.Setenv("DOT_OVERWRITE_BACKUP_KEEP_DAYS", "7")
 	got, err := Load("")
@@ -96,7 +104,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 		Branch:          "env-branch",
 		FetchTimeout:    time.Minute,
 		Leftovers:       Leftovers{Skip: []string{"a", "b c"}},
-		ModifyTemplates: []string{".config/zed/settings.json"},
+		ModifyTemplates: []ModifyTemplate{},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 7},
 		RestartNotices:  []RestartNotice{},
 	}
@@ -164,14 +172,14 @@ func TestLoadErrors(t *testing.T) {
 		{name: "not TOML", file: "branch = \n", wantErr: "config file"},
 		{name: "number for a string", file: "branch = 5\n", wantErr: "branch"},
 		{name: "number for a duration", file: "fetch_timeout = 10\n", wantErr: "fetch_timeout"},
-		{name: "number in a list", file: "modify_templates = [5]\n", wantErr: "modify_templates"},
+		{name: "number in a list", file: "[leftovers]\nskip = [5]\n", wantErr: "leftovers.skip"},
 		{name: "empty branch", file: "branch = \"\"\n", wantErr: `branch "" is not a branch name`},
 		{name: "zero timeout", file: "fetch_timeout = \"0s\"\n", wantErr: "fetch_timeout 0s must be more than zero"},
 		{name: "negative timeout", file: "fetch_timeout = \"-1s\"\n", wantErr: "must be more than zero"},
 		{name: "timeout without a unit", file: "fetch_timeout = \"10\"\n", wantErr: "fetch_timeout"},
 		{name: "absolute path", file: "[leftovers]\nskip = [\"/etc\"]\n", wantErr: `leftovers.skip: "/etc" must be ~ or start with ~/`},
 		{name: "path without ~", file: "[leftovers]\nskip = [\"Pictures\"]\n", wantErr: `leftovers.skip: "Pictures"`},
-		{name: "path leaving home", file: "modify_templates = [\"~/../x\"]\n", wantErr: `modify_templates: "~/../x"`},
+		{name: "path leaving home", file: "[leftovers]\nskip = [\"~/../x\"]\n", wantErr: `leftovers.skip: "~/../x"`},
 		{name: "number for a bool", file: "[overwrite_backup]\nenabled = 1\n", wantErr: "overwrite_backup.enabled"},
 		{name: "fraction for a number", file: "[overwrite_backup]\nkeep_days = 1.5\n", wantErr: "'overwrite_backup.keep_days' 1.5 is not a whole number"},
 		{name: "negative days", file: "[overwrite_backup]\nkeep_days = -1\n", wantErr: "overwrite_backup.keep_days -1 must not be negative"},
@@ -182,6 +190,13 @@ func TestLoadErrors(t *testing.T) {
 		{name: "notice with a path for a program", file: "[[restart_notices]]\nprogram = \"/usr/bin/zed\"\nfiles = [\"~/x\"]\n", wantErr: "must be a process name"},
 		{name: "notice file outside home", file: "[[restart_notices]]\nprogram = \"zed\"\nfiles = [\"/etc/x\"]\n", wantErr: "restart_notices[0].files: \"/etc/x\""},
 		{name: "notices not a list", file: "restart_notices = \"zed\"\n", wantErr: "restart_notices"},
+		{name: "template as a path", file: "modify_templates = [\"~/x\"]\n", wantErr: "modify_templates"},
+		{name: "template without keep", file: "[[modify_templates]]\nfile = \"~/x\"\n", wantErr: "modify_templates[0]: keep is missing"},
+		{name: "template without file", file: "[[modify_templates]]\nkeep = \"x\"\n", wantErr: `modify_templates[0].file: ""`},
+		{name: "template file outside home", file: "[[modify_templates]]\nfile = \"/etc/x\"\nkeep = \"x\"\n", wantErr: `modify_templates[0].file: "/etc/x"`},
+		{name: "template keep not a pattern", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = \"(\"\n", wantErr: "'modify_templates[0].keep' error parsing regexp: missing closing )"},
+		{name: "template keep not a string", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = 5\n", wantErr: "'modify_templates[0].keep' 5 is not a regular expression"},
+		{name: "unknown key in a template", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = \"x\"\nkept = \"y\"\n", wantErr: "invalid keys: kept"},
 		{name: "bad environment value", env: map[string]string{"DOT_FETCH_TIMEOUT": "soon"}, wantErr: "fetch_timeout"},
 	}
 	for _, tt := range tests {

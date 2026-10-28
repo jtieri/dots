@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -28,12 +29,12 @@ import (
 // Config holds dot's settings. Paths in the home directory are relative to
 // it, with "." for the home directory itself.
 type Config struct {
-	Branch          string          `mapstructure:"branch"`
-	FetchTimeout    time.Duration   `mapstructure:"fetch_timeout"`
-	Leftovers       Leftovers       `mapstructure:"leftovers"`
-	ModifyTemplates []string        `mapstructure:"modify_templates"`
-	OverwriteBackup OverwriteBackup `mapstructure:"overwrite_backup"`
-	RestartNotices  []RestartNotice `mapstructure:"restart_notices"`
+	Branch          string           `mapstructure:"branch"`
+	FetchTimeout    time.Duration    `mapstructure:"fetch_timeout"`
+	Leftovers       Leftovers        `mapstructure:"leftovers"`
+	ModifyTemplates []ModifyTemplate `mapstructure:"modify_templates"`
+	OverwriteBackup OverwriteBackup  `mapstructure:"overwrite_backup"`
+	RestartNotices  []RestartNotice  `mapstructure:"restart_notices"`
 }
 
 // Leftovers holds the settings for the leftovers check.
@@ -47,6 +48,14 @@ type OverwriteBackup struct {
 	Enabled bool `mapstructure:"enabled"`
 	// KeepDays is how long copies are kept; 0 keeps them forever.
 	KeepDays int `mapstructure:"keep_days"`
+}
+
+// A ModifyTemplate is a file the repo keeps as a chezmoi modify template, so
+// that one part of it stays as each machine has it.
+type ModifyTemplate struct {
+	File string `mapstructure:"file"`
+	// Keep matches the part of the file each machine keeps for itself.
+	Keep *regexp.Regexp `mapstructure:"keep"`
 }
 
 // A RestartNotice asks dot to say when a program should be restarted: when
@@ -93,9 +102,11 @@ var Settings = []Setting{
 	},
 	{
 		Key:     "modify_templates",
-		Env:     "DOT_MODIFY_TEMPLATES",
-		Default: []string{},
-		Help:    "Files the repo keeps as chezmoi modify templates. dot warns when one is replaced by a plain copy.",
+		Default: []ModifyTemplate{},
+		Help: "Files the repo keeps as chezmoi modify templates, as a list of tables with file and " +
+			"keep, a regular expression matching the part of the file each machine keeps for " +
+			"itself. dot capture rewrites the rest of the template from the file, and dot warns " +
+			"when one is replaced by a plain copy.",
 	},
 	{
 		Key:     "overwrite_backup.enabled",
@@ -180,6 +191,7 @@ func Load(file string) (*Config, error) {
 			mapstructure.StringToSliceHookFunc(","),
 			mapstructure.StringToBoolHookFunc(),
 			mapstructure.StringToIntHookFunc(),
+			regexpHook,
 		)
 	}
 	if err := v.UnmarshalExact(&c, strict); err != nil {
@@ -202,6 +214,18 @@ func durationHook(_, to reflect.Type, data any) (any, error) {
 		return nil, fmt.Errorf("%v is not a duration; write it as a string such as \"10s\"", data)
 	}
 	return time.ParseDuration(str)
+}
+
+// regexpHook compiles a regular expression from a string.
+func regexpHook(_, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeFor[*regexp.Regexp]() {
+		return data, nil
+	}
+	str, ok := data.(string)
+	if !ok {
+		return nil, fmt.Errorf("%v is not a regular expression; write it as a string", data)
+	}
+	return regexp.Compile(str)
 }
 
 // wholeNumberHook rejects a number with a fractional part for a whole-number
@@ -258,8 +282,17 @@ func (c *Config) check() error {
 	if c.Leftovers.Skip, err = homePaths("leftovers.skip", c.Leftovers.Skip); err != nil {
 		return err
 	}
-	if c.ModifyTemplates, err = homePaths("modify_templates", c.ModifyTemplates); err != nil {
-		return err
+	for i := range c.ModifyTemplates {
+		m := &c.ModifyTemplates[i]
+		key := fmt.Sprintf("modify_templates[%d]", i)
+		if m.Keep == nil {
+			return fmt.Errorf("%s: keep is missing", key)
+		}
+		files, err := homePaths(key+".file", []string{m.File})
+		if err != nil {
+			return err
+		}
+		m.File = files[0]
 	}
 	for i := range c.RestartNotices {
 		n := &c.RestartNotices[i]

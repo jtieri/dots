@@ -23,16 +23,14 @@ exitcode 1 dot status
 cmp stdout want-templates.txt
 
 # The environment overrides the file. An empty variable counts as unset.
-env DOT_MODIFY_TEMPLATES=~/.config/zed/settings.json
-env DOT_LEFTOVERS_SKIP=~,~/.config,~/Pictures
-exitcode 0 dot status
-stdout '^In sync\.$'
-env DOT_MODIFY_TEMPLATES=
+env DOT_LEFTOVERS_SKIP=~
 exitcode 1 dot status
-stdout 'btop.conf'
+stdout '~/Pictures/holiday.jpg'
+env DOT_LEFTOVERS_SKIP=
+exitcode 1 dot status
+! stdout holiday
 
 # DOT_CONFIG and --config choose another file; --config wins.
-env DOT_LEFTOVERS_SKIP=
 cp templates.toml other.toml
 env DOT_CONFIG=$WORK/other.toml
 exitcode 1 dot status
@@ -59,9 +57,14 @@ jpeg
 [leftovers]
 skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
 -- templates.toml --
-modify_templates = ["~/.config/zed/settings.json", "~/.config/btop/btop.conf"]
 [leftovers]
 skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
+[[modify_templates]]
+file = "~/.config/zed/settings.json"
+keep = '"theme"\s*:\s*\{[^{}]*\}'
+[[modify_templates]]
+file = "~/.config/btop/btop.conf"
+keep = '^color_theme = .*$'
 -- typo.toml --
 [leftovers]
 skp = ["~/Pictures"]

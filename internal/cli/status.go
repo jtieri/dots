@@ -23,10 +23,12 @@ the check itself failed.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			opts := status.Options{
-				Branch:          a.cfg.Branch,
-				FetchTimeout:    a.cfg.FetchTimeout,
-				SkipDirs:        a.cfg.Leftovers.Skip,
-				ModifyTemplates: a.cfg.ModifyTemplates,
+				Branch:       a.cfg.Branch,
+				FetchTimeout: a.cfg.FetchTimeout,
+				SkipDirs:     a.cfg.Leftovers.Skip,
+			}
+			for _, m := range a.cfg.ModifyTemplates {
+				opts.ModifyTemplates = append(opts.ModifyTemplates, m.File)
 			}
 			report, err := status.Check(cmd.Context(), a.dotfiles, opts)
 			if err != nil {
