@@ -194,6 +194,16 @@ func WriteFile(t *testing.T, name, data string) {
 	}
 }
 
+// ReadFile returns the contents of name.
+func ReadFile(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 // Running reports whether the process pid exists and has not exited.
 func Running(pid int) bool {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
