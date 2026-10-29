@@ -37,6 +37,18 @@ func TestPrompt(t *testing.T) {
 	}
 }
 
+func TestPromptLine(t *testing.T) {
+	s, in, _, errOut := Test()
+	in.WriteString("  Fix Zed's Font Size \n")
+	got, err := s.PromptLine(t.Context(), "Message: ")
+	if want := "Fix Zed's Font Size"; got != want || err != nil {
+		t.Errorf("PromptLine() = %q, %v; want %q, nil", got, err, want)
+	}
+	if errOut.String() != "Message: " {
+		t.Errorf("PromptLine() wrote %q to stderr, want the question", errOut)
+	}
+}
+
 func TestPromptReadsOneLineAtATime(t *testing.T) {
 	s, in, _, _ := Test()
 	in.WriteString("d\ny\n")

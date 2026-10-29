@@ -58,9 +58,17 @@ func (s *Streams) CanPrompt() bool { return s.InIsTerminal && s.ErrIsTerminal }
 var ErrNoAnswer = errors.New("no answer")
 
 // Prompt writes question to ErrOut and returns the line typed in reply, with
-// surrounding space removed and in lower case. If ctx is done first, as
-// after Ctrl-C, Prompt returns ctx's error without waiting for the line.
+// surrounding space removed and in lower case, for answers such as y or n.
+// If ctx is done first, as after Ctrl-C, Prompt returns ctx's error without
+// waiting for the line.
 func (s *Streams) Prompt(ctx context.Context, question string) (string, error) {
+	line, err := s.PromptLine(ctx, question)
+	return strings.ToLower(line), err
+}
+
+// PromptLine is like Prompt but keeps the line's case, for answers that are
+// text, such as a commit message.
+func (s *Streams) PromptLine(ctx context.Context, question string) (string, error) {
 	if _, err := io.WriteString(s.ErrOut, question); err != nil {
 		return "", err
 	}
@@ -78,7 +86,7 @@ func (s *Streams) Prompt(ctx context.Context, question string) (string, error) {
 		_, _ = io.WriteString(s.ErrOut, "\n")
 		return "", ctx.Err()
 	case r := <-replies:
-		return strings.ToLower(strings.TrimSpace(r.line)), r.err
+		return strings.TrimSpace(r.line), r.err
 	}
 }
 
