@@ -288,7 +288,7 @@ func TestPreparePackageListsSkipped(t *testing.T) {
 
 func TestDefaultMessage(t *testing.T) {
 	now := time.Date(2026, 10, 29, 9, 5, 0, 0, time.Local)
-	if got, want := DefaultMessage("tsukuyomi", now), "update from tsukuyomi, 2026-10-29 09:05"; got != want {
+	if got, want := DefaultMessage("desktop", now), "update from desktop, 2026-10-29 09:05"; got != want {
 		t.Errorf("DefaultMessage() = %q, want %q", got, want)
 	}
 }
