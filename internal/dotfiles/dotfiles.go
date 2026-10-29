@@ -67,6 +67,31 @@ func (d *Dotfiles) HomePath(repoPath string) (rel string, ok bool) {
 	return chezmoi.TargetPath(name)
 }
 
+// Target returns target, an absolute path, relative to the home directory and
+// slash-separated. It refuses paths dot never acts on: those outside the
+// home directory, the home directory itself, and the repo or a folder that
+// holds it.
+func (d *Dotfiles) Target(target string) (string, error) {
+	rel, err := filepath.Rel(d.Home, target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s is not in the home directory", target)
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return "", errors.New("the home directory itself cannot be named; name the files in it")
+	}
+	if Within(target, d.Repo.Dir) || Within(d.Repo.Dir, target) {
+		return "", fmt.Errorf("%s is the dotfiles repo or holds it", Tilde(rel))
+	}
+	return rel, nil
+}
+
+// Within reports whether name is dir or inside it. Both are absolute, or
+// both are slash-separated and relative to the same directory.
+func Within(name, dir string) bool {
+	return name == dir || strings.HasPrefix(name, strings.TrimSuffix(dir, "/")+"/")
+}
+
 // Tilde writes rel, a path relative to the home directory, the way people
 // read and write home paths: ~/rel, or ~ for the home directory itself.
 func Tilde(rel string) string {

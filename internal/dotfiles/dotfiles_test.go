@@ -73,3 +73,55 @@ func TestTilde(t *testing.T) {
 		}
 	}
 }
+
+func TestTarget(t *testing.T) {
+	d := &Dotfiles{Home: "/home/me", Repo: &git.Repo{Dir: "/home/me/dotfiles"}}
+	tests := []struct {
+		target  string
+		want    string
+		wantErr string
+	}{
+		{target: "/home/me/.bashrc", want: ".bashrc"},
+		{target: "/home/me/.config/kitty", want: ".config/kitty"},
+		{target: "/home/me/dotfilesx", want: "dotfilesx"},
+		{target: "/etc/hostname", wantErr: "/etc/hostname is not in the home directory"},
+		{target: "/home", wantErr: "/home is not in the home directory"},
+		{target: "/home/me", wantErr: "the home directory itself cannot be named"},
+		{target: "/home/me/dotfiles", wantErr: "~/dotfiles is the dotfiles repo or holds it"},
+		{target: "/home/me/dotfiles/home/dot_a", wantErr: "~/dotfiles/home/dot_a is the dotfiles repo or holds it"},
+	}
+	for _, tt := range tests {
+		got, err := d.Target(tt.target)
+		if tt.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("Target(%q) = %q, %v; want an error containing %q", tt.target, got, err, tt.wantErr)
+			}
+			continue
+		}
+		if err != nil || got != tt.want {
+			t.Errorf("Target(%q) = %q, %v; want %q", tt.target, got, err, tt.want)
+		}
+	}
+	deep := &Dotfiles{Home: "/home/me", Repo: &git.Repo{Dir: "/home/me/src/dotfiles"}}
+	if _, err := deep.Target("/home/me/src"); err == nil {
+		t.Error("Target() of a folder holding the repo: error = nil, want one")
+	}
+}
+
+func TestWithin(t *testing.T) {
+	tests := []struct {
+		name, dir string
+		want      bool
+	}{
+		{".config/kitty/kitty.conf", ".config/kitty", true},
+		{".config/kitty", ".config/kitty", true},
+		{".config/kittyx", ".config/kitty", false},
+		{"/home/me/a", "/home/me/", true},
+		{".config", ".config/kitty", false},
+	}
+	for _, tt := range tests {
+		if got := Within(tt.name, tt.dir); got != tt.want {
+			t.Errorf("Within(%q, %q) = %t, want %t", tt.name, tt.dir, got, tt.want)
+		}
+	}
+}

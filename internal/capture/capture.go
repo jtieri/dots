@@ -129,7 +129,7 @@ func (c *Capturer) Preview(ctx context.Context, target string) (*Plan, error) {
 		// last wrote whenever that part changed, as after a theme switch.
 		repoChanged := ch.Kind == apply.Update || ch.Kind == apply.Delete ||
 			(ch.Kind == apply.Conflict && !isTemplate)
-		if repoChanged && within(ch.Path, rel) {
+		if repoChanged && dotfiles.Within(ch.Path, rel) {
 			p.RepoNewer = append(p.RepoNewer, ch.Path)
 		}
 	}
@@ -154,16 +154,9 @@ func (c *Capturer) Preview(ctx context.Context, target string) (*Plan, error) {
 // check refuses paths that are never captured, and returns target relative
 // to the home directory.
 func (c *Capturer) check(target string) (string, error) {
-	rel, err := filepath.Rel(c.d.Home, target)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("%s is not in the home directory", target)
-	}
-	rel = filepath.ToSlash(rel)
-	if rel == "." {
-		return "", errors.New("the home directory itself cannot be captured; name the files in it")
-	}
-	if within(target, c.d.Repo.Dir) || within(c.d.Repo.Dir, target) {
-		return "", fmt.Errorf("%s is the dotfiles repo or holds it", dotfiles.Tilde(rel))
+	rel, err := c.d.Target(target)
+	if err != nil {
+		return "", err
 	}
 	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
 		return "", fmt.Errorf("%s does not exist on this machine; dot apply puts back the repo's version", dotfiles.Tilde(rel))
@@ -174,7 +167,7 @@ func (c *Capturer) check(target string) (string, error) {
 		return "", err
 	}
 	for _, r := range c.removed {
-		if within(r, target) {
+		if dotfiles.Within(r, target) {
 			return "", fmt.Errorf("the repo's .chezmoiremove deletes %s on every machine; "+
 				"take it off that list before capturing it", c.tilde(r))
 		}
@@ -460,12 +453,6 @@ func (c *Capturer) tilde(name string) string {
 		return name
 	}
 	return dotfiles.Tilde(filepath.ToSlash(rel))
-}
-
-// within reports whether name is dir or inside it. Both are slash-separated
-// or both are absolute.
-func within(name, dir string) bool {
-	return name == dir || strings.HasPrefix(name, strings.TrimSuffix(dir, "/")+"/")
 }
 
 // A savedEntry is an entry in the source directory as it was before a

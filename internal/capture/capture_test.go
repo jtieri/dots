@@ -301,7 +301,7 @@ func TestCaptureRefuses(t *testing.T) {
 	}{
 		{name: "outside home", target: "/etc/hostname", wantErr: "/etc/hostname is not in the home directory"},
 		{name: "above home", target: "..", wantErr: "is not in the home directory"},
-		{name: "home itself", target: ".", wantErr: "the home directory itself cannot be captured"},
+		{name: "home itself", target: ".", wantErr: "the home directory itself cannot be named"},
 		{name: "the repo", target: "dotfiles", wantErr: "~/dotfiles is the dotfiles repo or holds it"},
 		{name: "in the repo", target: "dotfiles/home/dot_a", wantErr: "is the dotfiles repo or holds it"},
 		{name: "missing", target: ".nope", wantErr: "~/.nope does not exist on this machine; dot apply puts back"},
