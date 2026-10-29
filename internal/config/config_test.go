@@ -19,6 +19,7 @@ var defaults = Config{
 	Leftovers:       Leftovers{Skip: []string{".", ".config", ".ssh"}},
 	ModifyTemplates: []ModifyTemplate{},
 	OverwriteBackup: OverwriteBackup{Enabled: true, KeepDays: 30},
+	Push:            Push{PackageLists: "scripts/pkglists"},
 	RestartNotices:  []RestartNotice{},
 }
 
@@ -55,6 +56,9 @@ skip = ["~", "~/.config", "~/.ssh", "~/Pictures"]
 enabled = false
 keep_days = 0
 
+[push]
+package_lists = "packages"
+
 [[restart_notices]]
 program = "zed-editor"
 files = ["~/.config/zed/settings.json"]
@@ -80,6 +84,7 @@ keep = '"theme"\s*:\s*\{[^{}]*\}'
 			{File: ".config/zed/settings.json", Keep: regexp.MustCompile(`"theme"\s*:\s*\{[^{}]*\}`)},
 		},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 0},
+		Push:            Push{PackageLists: "packages"},
 		RestartNotices: []RestartNotice{
 			{Program: "zed-editor", Files: []string{".config/zed/settings.json"}},
 			{Program: "polybar", Files: []string{".config/polybar/config.ini", ".config/polybar/colors.ini"}},
@@ -102,6 +107,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	t.Setenv("DOT_CAPTURE_PROTECTED", "~/.ssh/k*")
 	t.Setenv("DOT_OVERWRITE_BACKUP_ENABLED", "false")
 	t.Setenv("DOT_OVERWRITE_BACKUP_KEEP_DAYS", "7")
+	t.Setenv("DOT_PUSH_PACKAGE_LISTS", "lists/pacman")
 	got, err := Load("")
 	if err != nil {
 		t.Fatal(err)
@@ -113,6 +119,7 @@ func TestLoadEnvironmentOverridesFile(t *testing.T) {
 		Leftovers:       Leftovers{Skip: []string{"a", "b c"}},
 		ModifyTemplates: []ModifyTemplate{},
 		OverwriteBackup: OverwriteBackup{Enabled: false, KeepDays: 7},
+		Push:            Push{PackageLists: "lists/pacman"},
 		RestartNotices:  []RestartNotice{},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -198,6 +205,9 @@ func TestLoadErrors(t *testing.T) {
 		{name: "notice file outside home", file: "[[restart_notices]]\nprogram = \"zed\"\nfiles = [\"/etc/x\"]\n", wantErr: "restart_notices[0].files: \"/etc/x\""},
 		{name: "bad pattern", file: "[capture]\nprotected = [\"~/.ssh/[\"]\n", wantErr: `capture.protected: "~/.ssh/[" is not a valid pattern`},
 		{name: "protected outside home", file: "[capture]\nprotected = [\"/etc/*\"]\n", wantErr: `capture.protected: "/etc/*" must be ~`},
+		{name: "package lists outside the repo", file: "[push]\npackage_lists = \"../lists\"\n", wantErr: `push.package_lists "../lists" must be a folder inside the repo`},
+		{name: "package lists absolute", file: "[push]\npackage_lists = \"/lists\"\n", wantErr: `push.package_lists "/lists"`},
+		{name: "package lists not clean", file: "[push]\npackage_lists = \"scripts/\"\n", wantErr: `push.package_lists "scripts/"`},
 		{name: "notices not a list", file: "restart_notices = \"zed\"\n", wantErr: "restart_notices"},
 		{name: "template as a path", file: "modify_templates = [\"~/x\"]\n", wantErr: "modify_templates"},
 		{name: "template without keep", file: "[[modify_templates]]\nfile = \"~/x\"\n", wantErr: "modify_templates[0]: keep is missing"},
@@ -222,5 +232,14 @@ func TestLoadErrors(t *testing.T) {
 				t.Errorf("Load() error = %v, want one containing %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestLoadPackageListsOff(t *testing.T) {
+	home := testenv.Isolate(t)
+	writeConfig(t, home, "[push]\npackage_lists = \"\"\n")
+	got, err := Load("")
+	if err != nil || got.Push.PackageLists != "" {
+		t.Errorf("Load() package_lists = %q, %v; want it empty", got.Push.PackageLists, err)
 	}
 }

@@ -35,6 +35,7 @@ type Config struct {
 	Leftovers       Leftovers        `mapstructure:"leftovers"`
 	ModifyTemplates []ModifyTemplate `mapstructure:"modify_templates"`
 	OverwriteBackup OverwriteBackup  `mapstructure:"overwrite_backup"`
+	Push            Push             `mapstructure:"push"`
 	RestartNotices  []RestartNotice  `mapstructure:"restart_notices"`
 }
 
@@ -57,6 +58,13 @@ type OverwriteBackup struct {
 	Enabled bool `mapstructure:"enabled"`
 	// KeepDays is how long copies are kept; 0 keeps them forever.
 	KeepDays int `mapstructure:"keep_days"`
+}
+
+// Push holds the settings for dot push.
+type Push struct {
+	// PackageLists is the folder, relative to the top of the repo, that
+	// holds each machine's package lists. Empty leaves them alone.
+	PackageLists string `mapstructure:"package_lists"`
 }
 
 // A ModifyTemplate is a file the repo keeps as a chezmoi modify template, so
@@ -137,6 +145,13 @@ var Settings = []Setting{
 		Env:     "DOT_OVERWRITE_BACKUP_KEEP_DAYS",
 		Default: 30,
 		Help:    "How many days to keep those copies. 0 keeps them forever.",
+	},
+	{
+		Key:     "push.package_lists",
+		Env:     "DOT_PUSH_PACKAGE_LISTS",
+		Default: "scripts/pkglists",
+		Help: "The folder in the repo, relative to its top, where dot push keeps a folder of " +
+			"package lists for each machine, named after it. Empty turns the lists off.",
 	},
 	{
 		Key:     "restart_notices",
@@ -318,6 +333,9 @@ func (c *Config) check() error {
 			return err
 		}
 		m.File = files[0]
+	}
+	if p := c.Push.PackageLists; p != "" && (!filepath.IsLocal(p) || filepath.Clean(p) != p) {
+		return fmt.Errorf("push.package_lists %q must be a folder inside the repo, such as scripts/pkglists", p)
 	}
 	for i := range c.RestartNotices {
 		n := &c.RestartNotices[i]
