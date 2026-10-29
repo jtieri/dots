@@ -85,7 +85,7 @@ func TestCaptureNewFile(t *testing.T) {
 			if code != tt.wantCode {
 				t.Errorf("capture = %d, want %d; stderr %q", code, tt.wantCode, errOut)
 			}
-			if !strings.HasPrefix(errOut, "New to the repo, so every machine will get them\n  ~/.n\n") {
+			if !strings.HasPrefix(errOut, "New to the repo, so every machine will get it\n  ~/.n\n") {
 				t.Errorf("stderr = %q, want it to start with what is new", errOut)
 			}
 			if !strings.Contains(errOut, tt.wantErrOut) || !strings.Contains(out, tt.wantOut) {
@@ -118,7 +118,7 @@ func TestCaptureNeedsTerminal(t *testing.T) {
 			setup:    func(f *fixture) { chmodFile(f.t, f.path(".p"), 0o644) },
 			file:     "~/.p",
 			source:   "dot_p",
-			wantNote: "Private in the repo; capturing makes them readable to others on every machine\n  ~/.p\n",
+			wantNote: "Private in the repo; capturing makes it readable to others on every machine\n  ~/.p\n",
 		},
 		{
 			name:     "secret",
@@ -179,7 +179,7 @@ func TestCaptureWalk(t *testing.T) {
 	if code != exitOutOfSync {
 		t.Errorf("capture = %d, want %d; stderr %q", code, exitOutOfSync, errOut)
 	}
-	wantErrOut := "Deleted on this machine, so not captured; dot apply puts them back\n  ~/.c\n\n" +
+	wantErrOut := "Deleted on this machine, so not captured; dot apply puts it back\n  ~/.c\n\n" +
 		"~/.a changed on this machine.\nCapture ~/.a? [y/d/N] \n" +
 		"~/.b changed on this machine.\nCapture ~/.b? [y/d/N] Left ~/.b as it was.\n"
 	if errOut != wantErrOut {
@@ -229,13 +229,23 @@ func TestCaptureRepoNewer(t *testing.T) {
 	testenv.WriteFile(t, filepath.Join(f.Source, "dot_a"), "a from the repo\n")
 	testenv.WriteFile(t, f.path(".a"), "a from here\n")
 	code, _, errOut := f.run("", false, "capture", "~/.a")
-	want := "Changed in the repo since this machine last applied them; capturing replaces the repo's version\n  ~/.a\n" +
+	want := "Changed in the repo since this machine last applied it; capturing replaces the repo's version\n  ~/.a\n" +
 		"dot: nothing captured from ~/.a: there is no terminal to ask at; use --yes\n"
 	if code != exitError || errOut != want {
 		t.Errorf("capture = %d, stderr %q; want 2, %q", code, errOut, want)
 	}
 	if code, _, _ := f.run("", false, "capture", "--yes", "~/.a"); code != exitOK || f.source("dot_a") != "a from here\n" {
 		t.Errorf("capture --yes = %d, dot_a = %q; want ~/.a captured", code, f.source("dot_a"))
+	}
+}
+
+func TestCaptureNewFolder(t *testing.T) {
+	f := newCaptureFixture(t)
+	testenv.WriteFile(t, f.path(".n/x"), "x\n")
+	testenv.WriteFile(t, f.path(".n/y"), "y\n")
+	code, _, errOut := f.run("", false, "capture", "--yes", "~/.n")
+	if want := "New to the repo, so every machine will get them\n  ~/.n/x\n  ~/.n/y\n"; code != exitOK || errOut != want {
+		t.Errorf("capture = %d, stderr %q; want 0, %q", code, errOut, want)
 	}
 }
 

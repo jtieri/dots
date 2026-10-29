@@ -64,7 +64,9 @@ func (a *app) capture(ctx context.Context, args []string, yes bool) error {
 	var leftAlone bool
 	if walk {
 		if deleted := c.Deleted(); len(deleted) > 0 {
-			writeList(a.streams.ErrOut, "Deleted on this machine, so not captured; dot apply puts them back", tildes(deleted))
+			writeList(a.streams.ErrOut, tildes(deleted),
+				"Deleted on this machine, so not captured; dot apply puts it back",
+				"Deleted on this machine, so not captured; dot apply puts them back")
 			fmt.Fprintln(a.streams.ErrOut)
 			leftAlone = true
 		}
@@ -187,12 +189,17 @@ func (a *app) confirmCapture(ctx context.Context, p *capture.Plan, walk, yes boo
 	if walk {
 		fmt.Fprintf(w, "%s changed on this machine.\n", name)
 	}
-	writeList(w, "New to the repo, so every machine will get them", tildes(p.New))
-	writeList(w, "Changed in the repo since this machine last applied them; capturing replaces the repo's version",
-		tildes(p.RepoNewer))
-	writeList(w, "Private in the repo; capturing makes them readable to others on every machine", tildes(p.Unprivate))
+	writeList(w, tildes(p.New),
+		"New to the repo, so every machine will get it",
+		"New to the repo, so every machine will get them")
+	writeList(w, tildes(p.RepoNewer),
+		"Changed in the repo since this machine last applied it; capturing replaces the repo's version",
+		"Changed in the repo since this machine last applied them; capturing replaces the repo's versions")
+	writeList(w, tildes(p.Unprivate),
+		"Private in the repo; capturing makes it readable to others on every machine",
+		"Private in the repo; capturing makes them readable to others on every machine")
 	if p.Secret != "" {
-		writeList(w, "chezmoi's secret scanner found what may be a secret", []string{p.Secret})
+		writeList(w, []string{p.Secret}, "chezmoi's secret scanner found what may be a secret", "")
 	}
 	switch {
 	case yes && !risky:
@@ -222,11 +229,15 @@ func (a *app) confirmCapture(ctx context.Context, p *capture.Plan, walk, yes boo
 	}
 }
 
-// writeList writes a heading with items indented under it, or nothing when
-// there are no items.
-func writeList(w io.Writer, heading string, items []string) {
+// writeList writes items indented under a heading, one for a single item and
+// many for more, or nothing when there are no items.
+func writeList(w io.Writer, items []string, one, many string) {
 	if len(items) == 0 {
 		return
+	}
+	heading := one
+	if len(items) > 1 {
+		heading = many
 	}
 	fmt.Fprintln(w, heading)
 	for _, item := range items {
