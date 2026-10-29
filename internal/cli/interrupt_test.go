@@ -15,7 +15,7 @@ import (
 // TestInterrupt checks that Ctrl-C during the fetch stops a command
 // promptly, kills the fetch, and exits 130 without going on to anything else.
 func TestInterrupt(t *testing.T) {
-	for _, args := range [][]string{{"status"}, {"sync", "--yes"}} {
+	for _, args := range [][]string{{"status"}, {"sync", "--yes"}, {"push", "--yes"}} {
 		t.Run(args[0], func(t *testing.T) {
 			d := testenv.NewDotfiles(t, map[string]string{"dot_bashrc": "bashrc\n"})
 			// A change sync would apply if it went on after the fetch.
@@ -47,6 +47,9 @@ func TestInterrupt(t *testing.T) {
 			}
 			if data, _ := os.ReadFile(filepath.Join(d.Home, ".bashrc")); string(data) != "bashrc\n" {
 				t.Errorf(".bashrc = %q, want nothing applied", data)
+			}
+			if got := d.Git(t, "log", "-1", "--format=%s"); got != "initial\n" {
+				t.Errorf("last commit = %q, want nothing committed", got)
 			}
 			for range 50 {
 				if !testenv.Running(pid) {

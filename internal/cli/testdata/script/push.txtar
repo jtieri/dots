@@ -1,0 +1,33 @@
+# A change captured on one machine reaches another through dot push and
+# dot sync.
+dotfiles
+mkdir $HOME/.config/dot
+cp config.toml $HOME/.config/dot/config.toml
+exec git clone --quiet $WORK/remote.git $WORK/other
+
+cp kitty-edited $HOME/.config/kitty/kitty.conf
+exitcode 0 dot capture ~/.config/kitty/kitty.conf
+exitcode 0 dot push --yes 'bigger kitty font'
+cmp stdout pushed.txt
+exec git -C $WORK/other pull --quiet
+cmp $WORK/other/home/dot_config/kitty/kitty.conf kitty-edited
+
+# Nothing is left to push.
+exitcode 0 dot push
+cmp stdout nothing.txt
+
+-- config.toml --
+[push]
+package_lists = ""
+-- kitty-edited --
+font_size 14
+-- pushed.txt --
+Will commit changes to
+  ~/.config/kitty/kitty.conf
+
+Committed: bigger kitty font
+Pushed 1 commit.
+-- nothing.txt --
+Nothing to push.
+-- home/dotfiles/home/dot_config/kitty/kitty.conf --
+font_size 12
