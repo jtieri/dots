@@ -10,12 +10,35 @@ It never changes anything without showing you first.
 
 ## Status
 
-Early development. Nothing useful works yet.
+Every command below works and is tested, but `dot` is built around my own
+setup, so expect changes before 1.0.
+
+## Commands
+
+| Command | Does |
+|---|---|
+| `dot status` | Show what is out of sync: uncommitted repo changes, commits not yet pushed or pulled, files that differ from the repo, and untracked files in tracked folders |
+| `dot sync` | Pull changes from the other machines and apply them |
+| `dot apply` | Make the home directory match the repo |
+| `dot capture [file...]` | Copy files changed on this machine into the repo |
+| `dot push [message]` | Commit the repo's changes and push them |
+| `dot rm file...` | Stop tracking files and delete them on every machine |
+| `dot forget file...` | Stop tracking files but keep every machine's copy |
+| `dot help` | Show the cheat sheet: the commands, what each runs underneath, and every setting |
+
+The commands that change something preview what they will do and ask first.
+Files changed on this machine are copied to `~/.local/state/dot/overwritten/`
+before anything overwrites them.
+Exit codes are 0 for success or nothing to do, 1 for out of sync or
+canceled, and 2 for errors.
+
+`dot` finds the repo through chezmoi's source directory, so it works with
+any chezmoi setup whose source directory is in a git repo.
 
 ## Requirements
 
 - Go 1.27 or newer to build it
-- chezmoi and git at run time
+- chezmoi (tested with 2.72.0) and git at run time
 
 ## Install
 
@@ -26,9 +49,14 @@ go install github.com/jtieri/dot@latest
 This puts `dot` in `$(go env GOBIN)`, or `$(go env GOPATH)/bin` when that is
 unset.
 
+## Configuration
+
+Settings are optional and live in `~/.config/dot/config.toml`. `dot help`
+lists each one with its default and its environment variable.
+
 ## Development
 
-Run `make` to list the targets. `make check` runs the same checks as CI, so
+Run `make` to list the targets. `make check` runs the full set of checks, so
 run it before committing.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
