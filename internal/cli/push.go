@@ -19,7 +19,7 @@ func newPushCmd(a *app) *cobra.Command {
 	var yes bool
 	cmd := &cobra.Command{
 		Use:   "push [message]",
-		Short: "Commit the repo's changes and push them to the other machines",
+		Short: "Commit the repo's changes and push them",
 		Long: `Commit the changes in the dotfiles repo and push them, so that dot sync
 brings them to your other machines.
 

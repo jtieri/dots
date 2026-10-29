@@ -93,6 +93,7 @@ making it.`,
 		"print long output instead of showing it in $PAGER")
 	cmd.AddCommand(newApplyCmd(a), newCaptureCmd(a), newForgetCmd(a), newPushCmd(a), newRmCmd(a),
 		newStatusCmd(a), newSyncCmd(a))
+	cmd.SetHelpCommand(newHelpCmd(a))
 	return cmd
 }
 
