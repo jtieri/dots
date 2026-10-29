@@ -28,6 +28,10 @@ const (
 // on. Main exits 1 without printing it.
 var errOutOfSync = errors.New("out of sync")
 
+// errReported is returned by a command that has already printed its errors.
+// Main exits 2 without printing it.
+var errReported = errors.New("errors reported")
+
 // Main runs dot with args and returns the process exit code. Ctrl-C cancels
 // the running command, which stops the programs it started.
 func Main(args []string, streams *iostreams.Streams) int {
@@ -46,6 +50,8 @@ func execute(args []string, a *app) int {
 		return exitOK
 	case errors.Is(err, errOutOfSync):
 		return exitOutOfSync
+	case errors.Is(err, errReported):
+		return exitError
 	case ctx.Err() != nil:
 		return exitInterrupted
 	default:
@@ -85,7 +91,7 @@ making it.`,
 		"read settings from `file` instead of $DOT_CONFIG or ~/.config/dot/config.toml")
 	cmd.PersistentFlags().BoolVar(&a.streams.NoPager, "no-pager", false,
 		"print long output instead of showing it in $PAGER")
-	cmd.AddCommand(newApplyCmd(a), newStatusCmd(a), newSyncCmd(a))
+	cmd.AddCommand(newApplyCmd(a), newCaptureCmd(a), newStatusCmd(a), newSyncCmd(a))
 	return cmd
 }
 

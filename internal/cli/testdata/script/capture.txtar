@@ -1,0 +1,89 @@
+# dot capture copies files changed here into the repo.
+dotfiles
+mkdir $HOME/.config/dot
+cp config.toml $HOME/.config/dot/config.toml
+
+# A plain file.
+cp kitty-edited $HOME/.config/kitty/kitty.conf
+exitcode 0 dot capture $HOME/.config/kitty/kitty.conf
+cmp stdout captured-kitty.txt
+cmp $HOME/dotfiles/home/dot_config/kitty/kitty.conf kitty-edited
+
+# Zed's settings: the template is rewritten around this machine's theme
+# block, and reproduces the file exactly.
+cp zed-edited $HOME/.config/zed/settings.json
+exitcode 0 dot capture ~/.config/zed/settings.json
+cmp stdout captured-zed.txt
+cmp $HOME/dotfiles/home/dot_config/zed/modify_private_settings.json want-template
+exec chezmoi --no-tty cat $HOME/.config/zed/settings.json
+cmp stdout zed-edited
+exec chezmoi --no-tty status
+! stdout .
+
+# A protected file is refused.
+cp key $HOME/.ssh/id_ed25519
+exitcode 2 dot capture ~/.ssh/id_ed25519
+! stdout .
+stderr '^dot: ~/.ssh/id_ed25519 is protected by the capture.protected setting, so it is never copied into the repo$'
+
+# With no files named, dot goes through each file changed here.
+cp kitty-again $HOME/.config/kitty/kitty.conf
+exitcode 0 dot capture --yes
+cmp stdout captured-kitty.txt
+cmp $HOME/dotfiles/home/dot_config/kitty/kitty.conf kitty-again
+
+-- config.toml --
+[[modify_templates]]
+file = "~/.config/zed/settings.json"
+keep = '"theme"\s*:\s*\{[^{}]*\}'
+-- key --
+not really a key
+-- kitty-edited --
+font_size 13
+-- kitty-again --
+font_size 14
+-- captured-kitty.txt --
+Captured ~/.config/kitty/kitty.conf.
+
+Run dot push to commit and share the captured changes.
+-- captured-zed.txt --
+Captured ~/.config/zed/settings.json.
+
+Run dot push to commit and share the captured changes.
+-- zed-edited --
+// Zed settings
+{
+  "theme": {
+    "mode": "dark",
+    "dark": "Tokyo Night"
+  },
+  "ui_font_size": 18
+}
+-- want-template --
+{{- /* chezmoi:modify-template */ -}}
+{{- $theme := regexFind "\"theme\"\\s*:\\s*\\{[^{}]*\\}" .chezmoi.stdin -}}
+{{- if not $theme -}}
+{{-   $theme = "\"theme\": {\n    \"dark\": \"Default\"\n  }" -}}
+{{- end -}}
+{{- /* dot capture: the file follows */ -}}
+// Zed settings
+{
+  {{ $theme }},
+  "ui_font_size": 18
+}
+-- home/dotfiles/home/dot_config/kitty/kitty.conf --
+font_size 12
+-- home/dotfiles/home/dot_ssh/config --
+Host *
+-- home/dotfiles/home/dot_config/zed/modify_private_settings.json --
+{{- /* chezmoi:modify-template */ -}}
+{{- $theme := regexFind "\"theme\"\\s*:\\s*\\{[^{}]*\\}" .chezmoi.stdin -}}
+{{- if not $theme -}}
+{{-   $theme = "\"theme\": {\n    \"dark\": \"Default\"\n  }" -}}
+{{- end -}}
+{{- /* dot capture: the file follows */ -}}
+// Zed settings
+{
+  {{ $theme }},
+  "ui_font_size": 16
+}
