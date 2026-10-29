@@ -84,7 +84,7 @@ func (a *app) untrack(ctx context.Context, args []string, mode untrack.Mode, yes
 			return ctx.Err()
 		}
 		if err != nil {
-			fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+			a.printError(err)
 			failed = true
 			continue
 		}
@@ -123,7 +123,7 @@ func (a *app) untrack(ctx context.Context, args []string, mode untrack.Mode, yes
 			return ctx.Err()
 		}
 		if err != nil {
-			fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+			a.printError(err)
 			failed = true
 			continue
 		}

@@ -100,7 +100,7 @@ func (a *app) capture(ctx context.Context, args []string, yes bool) error {
 		case errors.Is(err, iostreams.ErrNoAnswer):
 			return errors.New("nothing more captured: no answer was given")
 		case err != nil:
-			fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+			a.printError(err)
 			failed = true
 		case outcome == captured:
 			anyCaptured = true
@@ -130,7 +130,7 @@ func (a *app) reportInterrupted(target string, err error) {
 			dotfiles.Tilde(filepath.ToSlash(rel)))
 	case err != nil && !errors.Is(err, context.Canceled):
 		// Putting the repo back failed, and the error says how.
-		fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+		a.printError(err)
 	}
 }
 

@@ -65,6 +65,11 @@ func (a *app) setup(cmd *cobra.Command) error {
 	return err
 }
 
+// printError reports err on standard error, as dot reports every error.
+func (a *app) printError(err error) {
+	fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+}
+
 func (a *app) close() {
 	if a.release != nil {
 		a.release()

@@ -4,7 +4,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -55,7 +54,7 @@ func execute(args []string, a *app) int {
 	case ctx.Err() != nil:
 		return exitInterrupted
 	default:
-		fmt.Fprintln(a.streams.ErrOut, "dot:", err)
+		a.printError(err)
 		return exitError
 	}
 }
