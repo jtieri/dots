@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -506,6 +507,9 @@ func TestCaptureRestores(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), want) || !strings.HasSuffix(err.Error(), "; the repo was put back as it was") {
 				t.Errorf("Capture() error = %v, want the check to fail and the repo put back", err)
 			}
+			if !errors.Is(err, ErrRestored) {
+				t.Errorf("Capture() error = %v, want it to wrap ErrRestored", err)
+			}
 			if diff := cmp.Diff(before, sourceTree(t, f.Source)); diff != "" {
 				t.Errorf("repo not put back (-before +after):\n%s", diff)
 			}
@@ -561,6 +565,9 @@ func TestCaptureChangedMeanwhileUnsaved(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Capture() error = %v, want it to contain %q", err, want)
 		}
+	}
+	if errors.Is(err, ErrRestored) {
+		t.Errorf("Capture() error = %v, want it not to claim the repo was put back", err)
 	}
 	if _, err := os.Lstat(f.source("private_dot_d/h")); err != nil {
 		t.Errorf("the repo's copy of ~/.d/h is gone: %v", err)

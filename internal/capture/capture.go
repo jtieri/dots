@@ -343,13 +343,17 @@ func (c *Capturer) Capture(ctx context.Context, p *Plan) (reset []string, err er
 	return c.resetPermissions(ctx, p)
 }
 
+// ErrRestored is wrapped in the error from a capture that failed after
+// changing the repo, once the repo has been put back as it was.
+var ErrRestored = errors.New("the repo was put back as it was")
+
 // putBack returns err, the reason a capture failed, with the outcome of
 // putting the repo back as it was.
 func (c *Capturer) putBack(err, restoreErr error) error {
 	if restoreErr != nil {
 		return errors.Join(err, restoreErr)
 	}
-	return fmt.Errorf("%w; the repo was put back as it was", err)
+	return fmt.Errorf("%w; %w", err, ErrRestored)
 }
 
 func (c *Capturer) captureTemplate(ctx context.Context, p *Plan) ([]string, error) {
