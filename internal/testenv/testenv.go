@@ -52,6 +52,8 @@ func Isolate(t *testing.T) string {
 	for _, name := range sessionVars {
 		unsetenv(t, name)
 	}
+	// Output is plain unless a test asks for color.
+	t.Setenv("NO_COLOR", "1")
 	for _, kv := range os.Environ() {
 		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "DOT_") {
 			unsetenv(t, name)

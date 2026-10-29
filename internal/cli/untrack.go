@@ -98,7 +98,7 @@ func (a *app) untrack(ctx context.Context, args []string, mode untrack.Mode, yes
 		return errReported
 	}
 
-	writeList(a.streams.Out, files, words.heading, words.heading)
+	writeList(a.streams.Out, a.streams.OutStyle, files, words.heading, words.heading)
 	ok, err := a.confirmUntrack(ctx, words.verb, len(files), yes)
 	if err != nil {
 		return err

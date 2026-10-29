@@ -70,7 +70,7 @@ func (a *app) apply(ctx context.Context, flags applyFlags) error {
 		fmt.Fprintln(a.streams.Out, "Nothing to apply; the home directory matches the repo.")
 		return nil
 	}
-	if err := plan.WriteText(a.streams.Out); err != nil {
+	if err := plan.WriteText(a.streams.Out, a.streams.OutStyle); err != nil {
 		return err
 	}
 

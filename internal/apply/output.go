@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dot/internal/style"
 )
 
 // headings gives the preview's heading for each Kind.
@@ -17,8 +18,9 @@ var headings = map[Kind]string{
 	Conflict:    "Changed both here and in the repo, would be replaced",
 }
 
-// WriteText writes the plan as a preview, grouped by kind.
-func (p *Plan) WriteText(w io.Writer) error {
+// WriteText writes the plan as a preview, grouped by kind and marked up with
+// st.
+func (p *Plan) WriteText(w io.Writer, st style.Style) error {
 	var b strings.Builder
 	for kind := Update; kind <= Conflict; kind++ {
 		var lines []string
@@ -33,7 +35,7 @@ func (p *Plan) WriteText(w io.Writer) error {
 		if b.Len() > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(headings[kind] + "\n")
+		b.WriteString(st.Heading(headings[kind]) + "\n")
 		for _, line := range lines {
 			b.WriteString("  " + line + "\n")
 		}

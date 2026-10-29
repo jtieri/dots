@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dot/internal/style"
 	"github.com/jtieri/dot/internal/text"
 )
 
@@ -19,12 +20,12 @@ var homeKinds = []struct{ kind, text string }{
 	{RemovedInRepo, "removed in the repo"},
 }
 
-// WriteText writes the report in English.
-func (r *Report) WriteText(w io.Writer) error {
+// WriteText writes the report in English, marked up with st.
+func (r *Report) WriteText(w io.Writer, st style.Style) error {
 	var b strings.Builder
 	repo := r.repoLines()
 	if r.InSync {
-		b.WriteString("In sync.\n")
+		b.WriteString(st.Good("In sync.") + "\n")
 		for _, line := range repo {
 			b.WriteString(line + "\n")
 		}
@@ -39,7 +40,7 @@ func (r *Report) WriteText(w io.Writer) error {
 		if b.Len() > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(title + "\n")
+		b.WriteString(st.Heading(title) + "\n")
 		for _, line := range lines {
 			b.WriteString("  " + line + "\n")
 		}

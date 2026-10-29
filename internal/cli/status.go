@@ -37,7 +37,7 @@ the check itself failed.`,
 			if asJSON {
 				err = report.WriteJSON(a.streams.Out)
 			} else {
-				err = report.WriteText(a.streams.Out)
+				err = report.WriteText(a.streams.Out, a.streams.OutStyle)
 			}
 			if err != nil {
 				return err

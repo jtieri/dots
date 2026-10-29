@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/jtieri/dot/internal/style"
 )
 
 func TestWriteText(t *testing.T) {
@@ -106,7 +108,7 @@ Should be modify templates, but the repo has plain copies
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var b strings.Builder
-			if err := tt.report.WriteText(&b); err != nil {
+			if err := tt.report.WriteText(&b, style.Style{}); err != nil {
 				t.Fatal(err)
 			}
 			if diff := cmp.Diff(tt.want, b.String()); diff != "" {

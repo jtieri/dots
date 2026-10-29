@@ -86,7 +86,7 @@ func (a *app) push(ctx context.Context, message string, yes bool) error {
 	if err != nil {
 		return err
 	}
-	writeList(a.streams.ErrOut, tildes(plan.Uncaptured),
+	writeList(a.streams.ErrOut, a.streams.ErrStyle, tildes(plan.Uncaptured),
 		"Changed on this machine but not captured, so left out; dot capture copies it into the repo",
 		"Changed on this machine but not captured, so left out; dot capture copies them into the repo")
 	if len(plan.Uncaptured) > 0 {
@@ -166,7 +166,7 @@ func (a *app) writePushPreview(plan *push.Plan, ahead int) {
 		{"Will delete from the repo", deleted},
 		{"Will rename in the repo", renamed},
 	} {
-		writeList(w, group.items, group.heading, group.heading)
+		writeList(w, a.streams.OutStyle, group.items, group.heading, group.heading)
 	}
 	switch {
 	case ahead > 0 && len(plan.Items) > 0:

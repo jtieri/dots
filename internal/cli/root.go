@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jtieri/dot/internal/iostreams"
+	"github.com/jtieri/dot/internal/style"
 )
 
 // Exit codes follow grep: 0 for success, 1 when there is something to act
@@ -60,6 +61,7 @@ func execute(args []string, a *app) int {
 }
 
 func newRootCmd(a *app) *cobra.Command {
+	var colorFlag string
 	cmd := &cobra.Command{
 		Use:   "dot",
 		Short: "Keep your dotfiles in sync across machines",
@@ -76,6 +78,13 @@ making it.`,
 			return cmd.Help()
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			mode, err := style.ParseMode(colorFlag)
+			if err != nil {
+				return err
+			}
+			s := a.streams
+			s.OutStyle = style.New(mode.Enabled(s.OutIsTerminal, os.Getenv))
+			s.ErrStyle = style.New(mode.Enabled(s.ErrIsTerminal, os.Getenv))
 			if !needsSetup(cmd) {
 				return nil
 			}
@@ -88,6 +97,8 @@ making it.`,
 	cmd.SetVersionTemplate("dot {{.Version}}\n")
 	cmd.PersistentFlags().StringVar(&a.configFile, "config", "",
 		"read settings from `file` instead of $DOT_CONFIG or ~/.config/dot/config.toml")
+	cmd.PersistentFlags().StringVar(&colorFlag, "color", string(style.Auto),
+		"when to color the output: auto (on a terminal, unless NO_COLOR is set), always or never")
 	cmd.PersistentFlags().BoolVar(&a.streams.NoPager, "no-pager", false,
 		"print long output instead of showing it in $PAGER")
 	cmd.AddCommand(newApplyCmd(a), newCaptureCmd(a), newForgetCmd(a), newPushCmd(a), newRmCmd(a),

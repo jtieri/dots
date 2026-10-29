@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"golang.org/x/term"
+
+	"github.com/jtieri/dot/internal/style"
 )
 
 // Streams holds the standard streams for a command.
@@ -29,6 +31,11 @@ type Streams struct {
 
 	// NoPager makes Page write straight to Out.
 	NoPager bool
+
+	// OutStyle and ErrStyle mark up text written to Out and ErrOut. They
+	// are plain until dot decides, from --color and the environment, to
+	// color its output.
+	OutStyle, ErrStyle style.Style
 }
 
 // System returns Streams for the process's standard input, output and error.

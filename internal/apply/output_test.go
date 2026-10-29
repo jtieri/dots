@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/jtieri/dot/internal/style"
 )
 
 func TestWriteText(t *testing.T) {
@@ -39,7 +41,7 @@ Changed both here and in the repo, would be replaced
   ~/.both
 `
 	var b strings.Builder
-	if err := plan.WriteText(&b); err != nil {
+	if err := plan.WriteText(&b, style.Style{}); err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(want, b.String()); diff != "" {
@@ -47,7 +49,7 @@ Changed both here and in the repo, would be replaced
 	}
 
 	b.Reset()
-	if err := (&Plan{}).WriteText(&b); err != nil || b.Len() != 0 {
+	if err := (&Plan{}).WriteText(&b, style.Style{}); err != nil || b.Len() != 0 {
 		t.Errorf("WriteText() of an empty plan = %q, %v; want nothing", b.String(), err)
 	}
 }
