@@ -290,6 +290,113 @@ func (r *Repo) overlap(ctx context.Context) ([]string, error) {
 	return paths, nil
 }
 
+// pathspecs returns the arguments that make git read the paths a command
+// works on from standard input, and that input. The paths are taken
+// literally, so a name with * or : in it means only that file.
+func pathspecs(paths []string) (args []string, stdin *strings.Reader) {
+	return []string{"--pathspec-from-file=-", "--pathspec-file-nul"}, strings.NewReader(strings.Join(paths, "\x00"))
+}
+
+// literal returns a command that runs git with args, taking pathspecs
+// literally.
+func (r *Repo) literal(ctx context.Context, args ...string) *exec.Cmd {
+	return r.command(ctx, append([]string{"--literal-pathspecs"}, args...)...)
+}
+
+// Commit commits the changes to paths, and only those, with message. paths
+// are relative to the top-level directory and may include new and deleted
+// files. Interrupted, git is stopped as Ctrl-C would stop it.
+func (r *Repo) Commit(ctx context.Context, paths []string, message string) error {
+	if len(paths) == 0 {
+		return errors.New("nothing to commit")
+	}
+	for _, args := range [][]string{
+		{"add", "--all"},
+		{"commit", "--quiet", "--message=" + message},
+	} {
+		spec, stdin := pathspecs(paths)
+		cmd := r.literal(ctx, append(args, spec...)...)
+		cmd.Stdin = stdin
+		cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+		cmd.WaitDelay = stopGrace
+		if _, err := run.Output(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// StagedDiff returns, as a git diff, what Commit would commit for paths. It
+// stages them in a copy of the index, so the real one is left as it was.
+func (r *Repo) StagedDiff(ctx context.Context, paths []string) ([]byte, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	out, err := r.output(ctx, "rev-parse", "--git-path", "index")
+	if err != nil {
+		return nil, err
+	}
+	index := strings.TrimSuffix(string(out), "\n")
+	if !filepath.IsAbs(index) {
+		index = filepath.Join(r.Dir, index)
+	}
+	data, err := os.ReadFile(index)
+	if err != nil {
+		return nil, err
+	}
+	tmp, err := os.CreateTemp("", "dot-index-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		return nil, err
+	}
+	env := append(os.Environ(), "GIT_INDEX_FILE="+tmp.Name())
+	spec, stdin := pathspecs(paths)
+	cmd := r.literal(ctx, append([]string{"add", "--all"}, spec...)...)
+	cmd.Stdin, cmd.Env = stdin, env
+	if _, err := run.Output(cmd); err != nil {
+		return nil, err
+	}
+	// git diff takes no pathspec file.
+	args := append([]string{"diff", "--cached", "--no-color", "--no-ext-diff", "--find-renames", "--"}, paths...)
+	cmd = r.literal(ctx, args...)
+	cmd.Env = env
+	return run.Output(cmd)
+}
+
+// ErrRejected is returned by Push when the remote has commits the branch
+// lacks.
+var ErrRejected = errors.New("the remote has commits this branch does not")
+
+// Push pushes the current branch to its upstream. As with Fetch, git and ssh
+// cannot stop to ask for a password or passphrase. When ctx is done, git and
+// everything it started are interrupted as Ctrl-C would, and killed if they
+// have not stopped after stopGrace.
+func (r *Repo) Push(ctx context.Context) error {
+	cmd := r.command(ctx, "push", "--porcelain")
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "SSH_ASKPASS_REQUIRE=never")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGINT) }
+	cmd.WaitDelay = stopGrace
+	out, err := run.Output(cmd)
+	if err == nil {
+		return nil
+	}
+	// A rejected ref is flagged with a ! in the porcelain output.
+	for line := range strings.Lines(string(out)) {
+		if strings.HasPrefix(line, "!\t") && strings.Contains(line, "[rejected]") {
+			return fmt.Errorf("%w: %w", ErrRejected, err)
+		}
+	}
+	return err
+}
+
 // LastFetch returns when the repository was last fetched, or the zero time if
 // it never was.
 func (r *Repo) LastFetch(ctx context.Context) (time.Time, error) {

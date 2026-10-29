@@ -140,6 +140,18 @@ func TestRepo(t *testing.T) {
 	})
 
 	t.Run("fetch from a missing remote fails", func(t *testing.T) {
+		// A remote that turns the push down is not ahead, so syncing would not help.
+		d.Git(t, "fetch", "--quiet")
+		d.Git(t, "rebase", "--quiet", "@{upstream}")
+		hook := filepath.Join(d.Remote, "hooks", "pre-receive")
+		testenv.WriteFile(t, hook, "#!/bin/sh\nexit 1\n")
+		if err := os.Chmod(hook, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.Push(ctx); err == nil || errors.Is(err, ErrRejected) {
+			t.Errorf("Push() turned down by the remote: error = %v, want one other than ErrRejected", err)
+		}
+
 		d.Git(t, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
 		defer d.Git(t, "remote", "set-url", "origin", d.Remote)
 		if err := r.Fetch(ctx, time.Minute); err == nil {
@@ -428,4 +440,104 @@ func waitForFile(t *testing.T, name string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("nothing written to %s", name)
+}
+
+func TestCommit(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n", "dot_gone": "gone\n"})
+	r := &Repo{Dir: d.Repo}
+	ctx := t.Context()
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "edited\n")
+	testenv.WriteFile(t, filepath.Join(d.Source, "st*r: a b"), "new\n")
+	testenv.WriteFile(t, filepath.Join(d.Source, "stxr: a b"), "not named\n")
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_b"), "left uncommitted\n")
+	if err := os.Remove(filepath.Join(d.Source, "dot_gone")); err != nil {
+		t.Fatal(err)
+	}
+	d.Git(t, "add", "home/dot_b") // staged, but not named
+
+	paths := []string{"home/dot_a", "home/st*r: a b", "home/dot_gone"}
+	if err := r.Commit(ctx, paths, "update from here"); err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Git(t, "log", "-1", "--format=%s"); got != "update from here\n" {
+		t.Errorf("commit message = %q", got)
+	}
+	got := d.Git(t, "show", "--name-status", "--format=", "HEAD")
+	want := "M\thome/dot_a\nD\thome/dot_gone\nA\thome/st*r: a b\n"
+	if got != want {
+		t.Errorf("committed:\n%s\nwant\n%s", got, want)
+	}
+	if got := d.Git(t, "status", "--porcelain"); got != "M  home/dot_b\n?? \"home/stxr: a b\"\n" {
+		t.Errorf("left uncommitted: %q, want the files not named", got)
+	}
+	if err := r.Commit(ctx, nil, "x"); err == nil {
+		t.Error("Commit() with no paths: error = nil, want one")
+	}
+}
+
+func TestStagedDiff(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_x": "x\n"})
+	r := &Repo{Dir: d.Repo}
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "edited\n")
+	testenv.WriteFile(t, filepath.Join(d.Source, "dot_new"), "new\n")
+	if err := os.Rename(filepath.Join(d.Source, "dot_x"), filepath.Join(d.Source, "private_dot_x")); err != nil {
+		t.Fatal(err)
+	}
+	before := d.Git(t, "status", "--porcelain")
+	got, err := r.StagedDiff(t.Context(), []string{"home/dot_a", "home/dot_new", "home/dot_x", "home/private_dot_x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"-a\n+edited\n", "new file mode 100644", "+new\n", "rename from home/dot_x\nrename to home/private_dot_x\n"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("StagedDiff() = %q, want it to contain %q", got, want)
+		}
+	}
+	if after := d.Git(t, "status", "--porcelain"); after != before {
+		t.Errorf("status after StagedDiff() = %q, want it unchanged from %q", after, before)
+	}
+}
+
+func TestPush(t *testing.T) {
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
+	r := &Repo{Dir: d.Repo}
+	ctx := t.Context()
+	commit := func(data string) {
+		t.Helper()
+		testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), data)
+		if err := r.Commit(ctx, []string{"home/dot_a"}, data); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	commit("pushed\n")
+	if err := r.Push(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := testenv.Run(t, d.Remote, "git", "log", "-1", "--format=%s"); got != "pushed\n" {
+		t.Errorf("remote's last commit = %q, want the pushed one", got)
+	}
+
+	d.PushFromElsewhere(t, map[string]string{"home/dot_b": "b\n"})
+	commit("rejected\n")
+	if err := r.Push(ctx); !errors.Is(err, ErrRejected) {
+		t.Errorf("Push() behind the remote: error = %v, want ErrRejected", err)
+	}
+
+	// A remote that turns the push down is not ahead, so syncing would not help.
+	d.Git(t, "fetch", "--quiet")
+	d.Git(t, "rebase", "--quiet", "@{upstream}")
+	hook := filepath.Join(d.Remote, "hooks", "pre-receive")
+	testenv.WriteFile(t, hook, "#!/bin/sh\nexit 1\n")
+	if err := os.Chmod(hook, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push(ctx); err == nil || errors.Is(err, ErrRejected) {
+		t.Errorf("Push() turned down by the remote: error = %v, want one other than ErrRejected", err)
+	}
+
+	d.Git(t, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	if err := r.Push(ctx); err == nil || errors.Is(err, ErrRejected) {
+		t.Errorf("Push() to a missing remote: error = %v, want one other than ErrRejected", err)
+	}
 }
