@@ -65,8 +65,8 @@ func (a *app) capture(ctx context.Context, args []string, yes bool) error {
 	if walk {
 		if deleted := c.Deleted(); len(deleted) > 0 {
 			writeList(a.streams.ErrOut, tildes(deleted),
-				"Deleted on this machine, so not captured; dot apply puts it back",
-				"Deleted on this machine, so not captured; dot apply puts them back")
+				"Deleted on this machine, so not captured; dot apply puts it back, or dot rm deletes it everywhere",
+				"Deleted on this machine, so not captured; dot apply puts them back, or dot rm deletes them everywhere")
 			fmt.Fprintln(a.streams.ErrOut)
 			leftAlone = true
 		}

@@ -304,7 +304,7 @@ func TestCaptureRefuses(t *testing.T) {
 		{name: "home itself", target: ".", wantErr: "the home directory itself cannot be named"},
 		{name: "the repo", target: "dotfiles", wantErr: "~/dotfiles is the dotfiles repo or holds it"},
 		{name: "in the repo", target: "dotfiles/home/dot_a", wantErr: "is the dotfiles repo or holds it"},
-		{name: "missing", target: ".nope", wantErr: "~/.nope does not exist on this machine; dot apply puts back"},
+		{name: "missing", target: ".nope", wantErr: "~/.nope does not exist on this machine; dot apply puts back the repo's version, and dot rm deletes it"},
 		{
 			name:    "protected",
 			setup:   func(f *fixture) { testenv.WriteFile(f.t, f.home(".ssh/id_ed25519"), "key\n") },

@@ -159,7 +159,8 @@ func (c *Capturer) check(target string) (string, error) {
 		return "", err
 	}
 	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
-		return "", fmt.Errorf("%s does not exist on this machine; dot apply puts back the repo's version", dotfiles.Tilde(rel))
+		return "", fmt.Errorf("%s does not exist on this machine; dot apply puts back the repo's version, "+
+			"and dot rm deletes it from the repo and every machine", dotfiles.Tilde(rel))
 	} else if err != nil {
 		return "", err
 	}

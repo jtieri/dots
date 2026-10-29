@@ -179,7 +179,7 @@ func TestCaptureWalk(t *testing.T) {
 	if code != exitOutOfSync {
 		t.Errorf("capture = %d, want %d; stderr %q", code, exitOutOfSync, errOut)
 	}
-	wantErrOut := "Deleted on this machine, so not captured; dot apply puts it back\n  ~/.c\n\n" +
+	wantErrOut := "Deleted on this machine, so not captured; dot apply puts it back, or dot rm deletes it everywhere\n  ~/.c\n\n" +
 		"~/.a changed on this machine.\nCapture ~/.a? [y/d/N] \n" +
 		"~/.b changed on this machine.\nCapture ~/.b? [y/d/N] Left ~/.b as it was.\n"
 	if errOut != wantErrOut {
