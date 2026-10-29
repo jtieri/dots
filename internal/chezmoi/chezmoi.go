@@ -129,11 +129,14 @@ func parseStatus(out []byte) ([]StatusEntry, error) {
 }
 
 // Managed returns the absolute paths of the entries chezmoi manages on this
-// machine. types lists the kinds of entry, as chezmoi's --include flag takes
-// them: "dirs" for directories, or "remove" for the files .chezmoiremove
-// deletes that are in the home directory.
-func (c *Client) Managed(ctx context.Context, types string) ([]string, error) {
-	out, err := c.output(ctx, "managed", "--include="+types, "--path-style=absolute", "-0")
+// machine, within targets if any are given, which are absolute paths in the
+// home directory. types lists the kinds of entry, as chezmoi's --include flag
+// takes them: "dirs" for directories, "files,symlinks" for files and links,
+// or "remove" for the files .chezmoiremove deletes that are in the home
+// directory.
+func (c *Client) Managed(ctx context.Context, types string, targets ...string) ([]string, error) {
+	args := append([]string{"managed", "--include=" + types, "--path-style=absolute", "-0", "--"}, targets...)
+	out, err := c.output(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +168,14 @@ func splitNul(b []byte) []string {
 		return nil
 	}
 	return strings.Split(string(b), "\x00")
+}
+
+// Forget removes target, an absolute path in the home directory, from the
+// source directory, with everything in it if it is a directory. The target
+// itself is left as it is.
+func (c *Client) Forget(ctx context.Context, target string) error {
+	_, err := c.output(ctx, "forget", "--force", "--", target)
+	return err
 }
 
 // Cat returns the contents the repo gives target, an absolute path in the

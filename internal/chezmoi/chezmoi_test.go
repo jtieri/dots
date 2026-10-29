@@ -141,6 +141,15 @@ func TestClient(t *testing.T) {
 		}
 	})
 
+	t.Run("Managed within", func(t *testing.T) {
+		kitty := filepath.Join(d.Home, ".config/kitty")
+		got, err := c.Managed(ctx, "files,symlinks", kitty)
+		want := []string{filepath.Join(kitty, "kitty.conf"), filepath.Join(kitty, "themes/x.conf")}
+		if diff := cmp.Diff(want, got); err != nil || diff != "" {
+			t.Errorf("Managed(files, .config/kitty) error = %v, mismatch (-want +got):\n%s", err, diff)
+		}
+	})
+
 	t.Run("Managed remove", func(t *testing.T) {
 		old := filepath.Join(d.Home, ".old")
 		testenv.WriteFile(t, old, "old\n")
@@ -168,6 +177,22 @@ func TestClient(t *testing.T) {
 		}
 		if got, err := c.Unmanaged(ctx, nil); err != nil || got != nil {
 			t.Errorf("Unmanaged(nil) = %v, %v; want nil, nil", got, err)
+		}
+	})
+
+	t.Run("Forget", func(t *testing.T) {
+		themes := filepath.Join(d.Home, ".config/kitty/themes")
+		if err := c.Forget(ctx, themes); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(filepath.Join(d.Source, "dot_config/kitty/themes")); err == nil {
+			t.Error("Forget() left the folder in the source directory")
+		}
+		if got := testenv.ReadFile(t, filepath.Join(themes, "x.conf")); got != "theme\n" {
+			t.Errorf("x.conf = %q, want it left as it was", got)
+		}
+		if err := c.Forget(ctx, filepath.Join(d.Home, ".nope")); err == nil {
+			t.Error("Forget() of an unmanaged file: error = nil, want one")
 		}
 	})
 
