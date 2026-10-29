@@ -520,6 +520,37 @@ func TestPush(t *testing.T) {
 		t.Errorf("remote's last commit = %q, want the pushed one", got)
 	}
 
+	// A branch whose upstream has another name, which git's default
+	// push.default refuses to push.
+	d.Git(t, "push", "--quiet", "origin", "main:trunk")
+	d.Git(t, "checkout", "--quiet", "-b", "local", "--track", "origin/trunk")
+	commit("to trunk\n")
+	if err := r.Push(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := testenv.Run(t, d.Remote, "git", "log", "-1", "--format=%s", "trunk"); got != "to trunk\n" {
+		t.Errorf("remote trunk's last commit = %q, want the pushed one", got)
+	}
+
+	// A remote with another name.
+	d.Git(t, "remote", "rename", "origin", "home")
+	commit("to home\n")
+	if err := r.Push(ctx); err != nil {
+		t.Fatal(err)
+	}
+	d.Git(t, "remote", "rename", "home", "origin")
+
+	d.Git(t, "checkout", "--quiet", "--detach")
+	if err := r.Push(ctx); err == nil {
+		t.Error("Push() with HEAD detached: error = nil, want one")
+	}
+	d.Git(t, "checkout", "--quiet", "main")
+	d.Git(t, "branch", "--quiet", "--unset-upstream")
+	if err := r.Push(ctx); !errors.Is(err, ErrNoUpstream) {
+		t.Errorf("Push() with no upstream: error = %v, want ErrNoUpstream", err)
+	}
+	d.Git(t, "branch", "--quiet", "--set-upstream-to=origin/main")
+
 	d.PushFromElsewhere(t, map[string]string{"home/dot_b": "b\n"})
 	commit("rejected\n")
 	if err := r.Push(ctx); !errors.Is(err, ErrRejected) {

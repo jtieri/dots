@@ -401,12 +401,27 @@ func (r *Repo) StagedDiff(ctx context.Context, paths []string) ([]byte, error) {
 // lacks.
 var ErrRejected = errors.New("the remote has commits this branch does not")
 
-// Push pushes the current branch to its upstream. As with Fetch, git and ssh
-// cannot stop to ask for a password or passphrase. When ctx is done, git and
-// everything it started are interrupted as Ctrl-C would, and killed if they
-// have not stopped after stopGrace.
+// Push pushes the current branch to its upstream, whatever its name and
+// git's push.default setting. As with Fetch, git and ssh cannot stop to ask
+// for a password or passphrase. When ctx is done, git and everything it
+// started are interrupted as Ctrl-C would, and killed if they have not
+// stopped after stopGrace.
 func (r *Repo) Push(ctx context.Context) error {
-	cmd := r.command(ctx, "push", "--porcelain")
+	// With HEAD detached there is no branch, and so no upstream.
+	branch, err := r.Branch(ctx)
+	if err != nil {
+		return err
+	}
+	remote, err := r.output(ctx, "config", "--get", "branch."+branch+".remote")
+	if err != nil {
+		return ErrNoUpstream
+	}
+	merge, err := r.output(ctx, "config", "--get", "branch."+branch+".merge")
+	if err != nil {
+		return ErrNoUpstream
+	}
+	refspec := "HEAD:" + strings.TrimSpace(string(merge))
+	cmd := r.command(ctx, "push", "--porcelain", strings.TrimSpace(string(remote)), refspec)
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "SSH_ASKPASS_REQUIRE=never")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGINT) }
