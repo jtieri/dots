@@ -186,7 +186,7 @@ func (a *app) confirmPush(ctx context.Context, plan *push.Plan, message *string,
 		if !yes && a.streams.CanPrompt() {
 			answer, err := a.streams.PromptLine(ctx, fmt.Sprintf("\nCommit message [%s]: ", *message))
 			if err != nil {
-				return false, a.noAnswer(err)
+				return false, noAnswer(err, "nothing committed or pushed")
 			}
 			if answer != "" {
 				*message = answer
@@ -209,7 +209,7 @@ func (a *app) confirmPush(ctx context.Context, plan *push.Plan, message *string,
 	for {
 		answer, err := a.streams.Prompt(ctx, question)
 		if err != nil {
-			return false, a.noAnswer(err)
+			return false, noAnswer(err, "nothing committed or pushed")
 		}
 		switch answer {
 		case "y", "yes":
@@ -233,10 +233,11 @@ func (a *app) confirmPush(ctx context.Context, plan *push.Plan, message *string,
 	}
 }
 
-// noAnswer turns input ending before an answer into an error that says so.
-func (a *app) noAnswer(err error) error {
+// noAnswer turns input ending before an answer into an error saying so, and
+// what was not done.
+func noAnswer(err error, notDone string) error {
 	if errors.Is(err, iostreams.ErrNoAnswer) {
-		return errors.New("nothing committed or pushed: no answer was given")
+		return fmt.Errorf("%s: no answer was given", notDone)
 	}
 	return err
 }
