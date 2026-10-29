@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,6 +56,20 @@ func (c *Client) output(ctx context.Context, args ...string) ([]byte, error) {
 func (c *Client) Init(ctx context.Context) error {
 	_, err := c.output(ctx, "init")
 	return err
+}
+
+// Hostname returns the machine's name as chezmoi's templates see it: the
+// host name up to its first dot.
+func (c *Client) Hostname(ctx context.Context) (string, error) {
+	out, err := c.output(ctx, "execute-template", "{{ .chezmoi.hostname }}")
+	if err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(string(out))
+	if name == "" {
+		return "", errors.New("chezmoi does not know this machine's host name")
+	}
+	return name, nil
 }
 
 // SourceDir returns chezmoi's source directory: the folder in the dotfiles

@@ -74,6 +74,25 @@ func TestClient(t *testing.T) {
 		}
 	})
 
+	t.Run("Hostname", func(t *testing.T) {
+		host, err := os.Hostname()
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _, _ := strings.Cut(host, ".")
+		if got, err := c.Hostname(ctx); err != nil || got != want {
+			t.Errorf("Hostname() = %q, %v; want %q", got, err, want)
+		}
+		silent := filepath.Join(t.TempDir(), "chezmoi")
+		testenv.WriteFile(t, silent, "#!/bin/sh\necho\n")
+		if err := os.Chmod(silent, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := (&Client{Program: silent}).Hostname(ctx); err == nil {
+			t.Errorf("Hostname() with no name = %q, want an error", got)
+		}
+	})
+
 	t.Run("SourcePath", func(t *testing.T) {
 		got, err := c.SourcePath(ctx, filepath.Join(d.Home, ".config/zed/settings.json"))
 		want := filepath.Join(d.Source, "dot_config/zed/modify_settings.json")
