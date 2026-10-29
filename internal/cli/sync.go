@@ -42,16 +42,9 @@ and 2 on errors, including when nothing could be pulled.`,
 
 func (a *app) sync(ctx context.Context, flags applyFlags) error {
 	repo := a.dotfiles.Repo
-	branch, err := repo.Branch(ctx)
+	branch, err := a.checkBranch(ctx, "pull")
 	if err != nil {
 		return err
-	}
-	if branch == "" {
-		return fmt.Errorf("the repo is not on a branch, so there is nothing to pull; switch to %s with git switch",
-			a.cfg.Branch)
-	}
-	if branch != a.cfg.Branch {
-		fmt.Fprintf(a.streams.ErrOut, "The repo is on branch %s, not %s.\n", branch, a.cfg.Branch)
 	}
 
 	if err := repo.Fetch(ctx, a.cfg.FetchTimeout); err != nil {
@@ -78,6 +71,24 @@ func (a *app) sync(ctx context.Context, flags applyFlags) error {
 	// The blank line sets the pull apart from the apply's preview.
 	fmt.Fprintln(a.streams.Out)
 	return a.apply(ctx, flags)
+}
+
+// checkBranch returns the repo's branch, warning when it is not the one every
+// machine should be on. With no branch there is nothing to pull or push,
+// which action names.
+func (a *app) checkBranch(ctx context.Context, action string) (string, error) {
+	branch, err := a.dotfiles.Repo.Branch(ctx)
+	if err != nil {
+		return "", err
+	}
+	if branch == "" {
+		return "", fmt.Errorf("the repo is not on a branch, so there is nothing to %s; switch to %s with git switch",
+			action, a.cfg.Branch)
+	}
+	if branch != a.cfg.Branch {
+		fmt.Fprintf(a.streams.ErrOut, "The repo is on branch %s, not %s.\n", branch, a.cfg.Branch)
+	}
+	return branch, nil
 }
 
 // pullError explains why the fast-forward failed and what to do about it.
