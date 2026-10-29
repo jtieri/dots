@@ -243,3 +243,61 @@ func TestLoadPackageListsOff(t *testing.T) {
 		t.Errorf("Load() package_lists = %q, %v; want it empty", got.Push.PackageLists, err)
 	}
 }
+
+func TestDefaultText(t *testing.T) {
+	want := map[string]string{
+		"branch":                     `"main"`,
+		"capture.protected":          `["~/.ssh/id_*", "~/.gnupg"]`,
+		"fetch_timeout":              `"10s"`,
+		"leftovers.skip":             `["~", "~/.config", "~/.ssh"]`,
+		"modify_templates":           "[]",
+		"overwrite_backup.enabled":   "true",
+		"overwrite_backup.keep_days": "30",
+		"push.package_lists":         `"scripts/pkglists"`,
+		"restart_notices":            "[]",
+	}
+	for _, s := range Settings {
+		w, ok := want[s.Key]
+		if !ok {
+			t.Errorf("no expected default text for %s", s.Key)
+			continue
+		}
+		if got := s.DefaultText(); got != w {
+			t.Errorf("%s DefaultText() = %s, want %s", s.Key, got, w)
+		}
+	}
+	if len(want) != len(Settings) {
+		t.Errorf("want covers %d settings, there are %d", len(want), len(Settings))
+	}
+}
+
+// TestDefaultTextLoads checks that each default, written into a
+// configuration file, loads as the default does.
+func TestDefaultTextLoads(t *testing.T) {
+	home := testenv.Isolate(t)
+	// Top-level settings come first: in TOML, those after a table belong
+	// to it.
+	var top, tables strings.Builder
+	table := ""
+	for _, s := range Settings {
+		tbl, key, ok := strings.Cut(s.Key, ".")
+		if !ok {
+			top.WriteString(s.Key + " = " + s.DefaultText() + "\n")
+			continue
+		}
+		if tbl != table {
+			tables.WriteString("[" + tbl + "]\n")
+			table = tbl
+		}
+		tables.WriteString(key + " = " + s.DefaultText() + "\n")
+	}
+	file := top.String() + tables.String()
+	writeConfig(t, home, file)
+	got, err := Load("")
+	if err != nil {
+		t.Fatalf("Load() of the defaults written out:\n%s\nerror: %v", file, err)
+	}
+	if diff := cmp.Diff(&defaults, got, cmpRegexp); diff != "" {
+		t.Errorf("Load() mismatch (-want +got):\n%s", diff)
+	}
+}

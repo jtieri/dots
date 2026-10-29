@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,6 +95,30 @@ type Setting struct {
 	// would be in the file.
 	Default any
 	Help    string
+}
+
+// DefaultText returns the setting's default written as it would be in the
+// configuration file, such as "main" or ["~", "~/.config"].
+func (s Setting) DefaultText() string {
+	switch v := s.Default.(type) {
+	case string:
+		return strconv.Quote(v)
+	case []string:
+		quoted := make([]string, len(v))
+		for i, item := range v {
+			quoted[i] = strconv.Quote(item)
+		}
+		return "[" + strings.Join(quoted, ", ") + "]"
+	case bool:
+		return strconv.FormatBool(v)
+	case int:
+		return strconv.Itoa(v)
+	}
+	// The lists of tables, which are empty by default.
+	if rv := reflect.ValueOf(s.Default); rv.Kind() == reflect.Slice && rv.Len() == 0 {
+		return "[]"
+	}
+	return fmt.Sprint(s.Default)
 }
 
 // Settings lists every setting.
