@@ -218,7 +218,8 @@ func (c *Capturer) dryRun(ctx context.Context, p *Plan) (*chezmoi.SourceDiff, er
 	if ignoreErr != nil {
 		return nil, ignoreErr
 	}
-	p.Secret = strings.TrimPrefix(run.Reason(err), "chezmoi: ")
+	finding := strings.TrimPrefix(run.Reason(err), "chezmoi: ")
+	p.Secret = strings.ReplaceAll(finding, c.d.Home+string(filepath.Separator), "~/")
 	return diff, nil
 }
 

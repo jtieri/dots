@@ -224,8 +224,8 @@ func TestCaptureSecret(t *testing.T) {
 		"\n-----END OPENSSH " + "PRIVATE KEY-----\n"
 	testenv.WriteFile(t, f.home(".k"), key)
 	p := f.mustPreview(".k")
-	if !strings.Contains(p.Secret, "Private Key") || strings.HasPrefix(p.Secret, "chezmoi:") {
-		t.Errorf("Secret = %q, want chezmoi's finding", p.Secret)
+	if want := "~/.k:1: Identified a Private Key"; !strings.HasPrefix(p.Secret, want) {
+		t.Errorf("Secret = %q, want chezmoi's finding, starting %q", p.Secret, want)
 	}
 	if diff := cmp.Diff([]string{".k"}, p.New); diff != "" {
 		t.Errorf("New mismatch (-want +got):\n%s", diff)
