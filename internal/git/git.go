@@ -305,25 +305,55 @@ func (r *Repo) literal(ctx context.Context, args ...string) *exec.Cmd {
 
 // Commit commits the changes to paths, and only those, with message. paths
 // are relative to the top-level directory and may include new and deleted
-// files. Interrupted, git is stopped as Ctrl-C would stop it.
+// files, and both names of a renamed one.
 func (r *Repo) Commit(ctx context.Context, paths []string, message string) error {
 	if len(paths) == 0 {
 		return errors.New("nothing to commit")
 	}
-	for _, args := range [][]string{
-		{"add", "--all"},
-		{"commit", "--quiet", "--message=" + message},
-	} {
-		spec, stdin := pathspecs(paths)
-		cmd := r.literal(ctx, append(args, spec...)...)
-		cmd.Stdin = stdin
-		cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
-		cmd.WaitDelay = stopGrace
-		if _, err := run.Output(cmd); err != nil {
+	if err := r.stage(ctx, paths, nil); err != nil {
+		return err
+	}
+	return r.runPaths(ctx, []string{"commit", "--quiet", "--message=" + message}, paths, nil)
+}
+
+// stage stages paths as they are in the working tree, in the index that env
+// names, or the repo's own when env is nil. A path that is gone is removed
+// from the index, or left alone when the index lacks it too, as the old name
+// of a staged rename does.
+func (r *Repo) stage(ctx context.Context, paths, env []string) error {
+	var present, gone []string
+	for _, p := range paths {
+		_, err := os.Lstat(filepath.Join(r.Dir, filepath.FromSlash(p)))
+		switch {
+		case err == nil:
+			present = append(present, p)
+		case errors.Is(err, fs.ErrNotExist):
+			gone = append(gone, p)
+		default:
 			return err
 		}
 	}
+	if len(gone) > 0 {
+		if err := r.runPaths(ctx, []string{"rm", "--cached", "--ignore-unmatch", "--quiet"}, gone, env); err != nil {
+			return err
+		}
+	}
+	if len(present) > 0 {
+		return r.runPaths(ctx, []string{"add"}, present, env)
+	}
 	return nil
+}
+
+// runPaths runs git with args on paths, taken literally. Interrupted, git is
+// stopped as Ctrl-C would stop it, so it removes its lock on the index.
+func (r *Repo) runPaths(ctx context.Context, args, paths, env []string) error {
+	spec, stdin := pathspecs(paths)
+	cmd := r.literal(ctx, append(args, spec...)...)
+	cmd.Stdin, cmd.Env = stdin, env
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = stopGrace
+	_, err := run.Output(cmd)
+	return err
 }
 
 // StagedDiff returns, as a git diff, what Commit would commit for paths. It
@@ -357,15 +387,12 @@ func (r *Repo) StagedDiff(ctx context.Context, paths []string) ([]byte, error) {
 		return nil, err
 	}
 	env := append(os.Environ(), "GIT_INDEX_FILE="+tmp.Name())
-	spec, stdin := pathspecs(paths)
-	cmd := r.literal(ctx, append([]string{"add", "--all"}, spec...)...)
-	cmd.Stdin, cmd.Env = stdin, env
-	if _, err := run.Output(cmd); err != nil {
+	if err := r.stage(ctx, paths, env); err != nil {
 		return nil, err
 	}
 	// git diff takes no pathspec file.
 	args := append([]string{"diff", "--cached", "--no-color", "--no-ext-diff", "--find-renames", "--"}, paths...)
-	cmd = r.literal(ctx, args...)
+	cmd := r.literal(ctx, args...)
 	cmd.Env = env
 	return run.Output(cmd)
 }

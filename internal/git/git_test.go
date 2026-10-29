@@ -443,7 +443,7 @@ func waitForFile(t *testing.T, name string) {
 }
 
 func TestCommit(t *testing.T) {
-	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n", "dot_gone": "gone\n"})
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_b": "b\n", "dot_gone": "gone\n", "dot_old": "old\n"})
 	r := &Repo{Dir: d.Repo}
 	ctx := t.Context()
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "edited\n")
@@ -454,8 +454,9 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.Git(t, "add", "home/dot_b") // staged, but not named
+	d.Git(t, "mv", "home/dot_old", "home/dot_renamed")
 
-	paths := []string{"home/dot_a", "home/st*r: a b", "home/dot_gone"}
+	paths := []string{"home/dot_a", "home/st*r: a b", "home/dot_gone", "home/dot_renamed", "home/dot_old"}
 	if err := r.Commit(ctx, paths, "update from here"); err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +464,7 @@ func TestCommit(t *testing.T) {
 		t.Errorf("commit message = %q", got)
 	}
 	got := d.Git(t, "show", "--name-status", "--format=", "HEAD")
-	want := "M\thome/dot_a\nD\thome/dot_gone\nA\thome/st*r: a b\n"
+	want := "M\thome/dot_a\nD\thome/dot_gone\nR100\thome/dot_old\thome/dot_renamed\nA\thome/st*r: a b\n"
 	if got != want {
 		t.Errorf("committed:\n%s\nwant\n%s", got, want)
 	}
@@ -476,19 +477,20 @@ func TestCommit(t *testing.T) {
 }
 
 func TestStagedDiff(t *testing.T) {
-	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_x": "x\n"})
+	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n", "dot_x": "x\n", "dot_a2": "a2\n"})
 	r := &Repo{Dir: d.Repo}
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "edited\n")
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_new"), "new\n")
 	if err := os.Rename(filepath.Join(d.Source, "dot_x"), filepath.Join(d.Source, "private_dot_x")); err != nil {
 		t.Fatal(err)
 	}
+	d.Git(t, "mv", "home/dot_a2", "home/dot_b2")
 	before := d.Git(t, "status", "--porcelain")
-	got, err := r.StagedDiff(t.Context(), []string{"home/dot_a", "home/dot_new", "home/dot_x", "home/private_dot_x"})
+	got, err := r.StagedDiff(t.Context(), []string{"home/dot_a", "home/dot_new", "home/dot_x", "home/private_dot_x", "home/dot_b2", "home/dot_a2"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"-a\n+edited\n", "new file mode 100644", "+new\n", "rename from home/dot_x\nrename to home/private_dot_x\n"} {
+	for _, want := range []string{"-a\n+edited\n", "new file mode 100644", "+new\n", "rename from home/dot_x\nrename to home/private_dot_x\n", "rename from home/dot_a2\nrename to home/dot_b2\n"} {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("StagedDiff() = %q, want it to contain %q", got, want)
 		}
