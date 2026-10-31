@@ -30,7 +30,10 @@ env DOTS_LEFTOVERS_SKIP=
 exitcode 1 dots status
 ! stdout holiday
 
-# DOTS_CONFIG and --config choose another file; --config wins.
+# DOTS_CONFIG and --config choose another file; --config wins. The default
+# file reports nothing, so each result shows which file was read.
+cp skip-pictures.toml $HOME/.config/dots/config.toml
+exitcode 0 dots status
 cp templates.toml other.toml
 env DOTS_CONFIG=$WORK/other.toml
 exitcode 1 dots status
