@@ -15,11 +15,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/jtieri/dot/internal/apply"
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/git"
-	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dots/internal/apply"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/git"
+	"github.com/jtieri/dots/internal/run"
 )
 
 // Options control what may be captured.
@@ -159,8 +159,8 @@ func (c *Capturer) check(target string) (string, error) {
 		return "", err
 	}
 	if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
-		return "", fmt.Errorf("%s does not exist on this machine; dot apply puts back the repo's version, "+
-			"and dot rm deletes it from the repo and every machine", dotfiles.Tilde(rel))
+		return "", fmt.Errorf("%s does not exist on this machine; dots apply puts back the repo's version, "+
+			"and dots rm deletes it from the repo and every machine", dotfiles.Tilde(rel))
 	} else if err != nil {
 		return "", err
 	}
@@ -203,7 +203,7 @@ func (c *Capturer) checkProtected(target string) error {
 // chezmoi's secret scanner on it. A finding is recorded in p, with what
 // adding would change despite it.
 func (c *Capturer) dryRun(ctx context.Context, p *Plan) (*chezmoi.SourceDiff, error) {
-	// Force lets the dry run go past chezmoi's questions; dot asks its own.
+	// Force lets the dry run go past chezmoi's questions; dots asks its own.
 	diff, err := c.d.Chezmoi.Add(ctx, p.target, chezmoi.AddOptions{DryRun: true, Force: true})
 	if err == nil {
 		return diff, nil
@@ -233,7 +233,7 @@ func (c *Capturer) previewTemplate(ctx context.Context, p *Plan, m ModifyTemplat
 		return err
 	}
 	if _, attrs, _ := chezmoi.Parse(filepath.Base(src), false); !attrs.Modify {
-		return fmt.Errorf("the repo should keep %s as a modify template, but it is %s; dot status says more",
+		return fmt.Errorf("the repo should keep %s as a modify template, but it is %s; dots status says more",
 			name, c.repoPath(src))
 	}
 	file, err := os.ReadFile(p.target)
@@ -273,7 +273,7 @@ func (c *Capturer) checkChanges(p *Plan) error {
 		switch {
 		case isTemplate:
 			return fmt.Errorf("the repo keeps %s as a modify template; capture it on its own, "+
-				"so that dot rewrites the template", dotfiles.Tilde(target))
+				"so that dots rewrites the template", dotfiles.Tilde(target))
 		case attrs.Template || attrs.Modify:
 			return fmt.Errorf("the repo makes %s from %s, and capturing would replace it with a plain copy; "+
 				"edit that file instead", dotfiles.Tilde(target), c.repoPath(from))
@@ -304,7 +304,7 @@ func (c *Capturer) checkChanges(p *Plan) error {
 
 // Capture carries out p. It then checks that the repo produces what is in
 // the home directory, and puts the repo back as it was if not. reset lists
-// the files whose permissions the repo cannot record, which dot apply will
+// the files whose permissions the repo cannot record, which dots apply will
 // change: the repo records only whether a file is private, read-only or
 // executable.
 func (c *Capturer) Capture(ctx context.Context, p *Plan) (reset []string, err error) {
@@ -550,7 +550,7 @@ func writeFileAtomic(name string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(name), "."+filepath.Base(name)+".dot-*")
+	f, err := os.CreateTemp(filepath.Dir(name), "."+filepath.Base(name)+".dots-*")
 	if err != nil {
 		return err
 	}

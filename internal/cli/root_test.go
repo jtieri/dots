@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/iostreams"
+	"github.com/jtieri/dots/internal/iostreams"
 )
 
 func TestRoot(t *testing.T) {
@@ -24,19 +24,19 @@ func TestRoot(t *testing.T) {
 			name:     "version flag",
 			args:     []string{"--version"},
 			wantCode: exitOK,
-			wantOut:  "dot ",
+			wantOut:  "dots ",
 		},
 		{
 			name:       "unknown flag",
 			args:       []string{"--bogus"},
 			wantCode:   exitError,
-			wantErrOut: "dot: unknown flag: --bogus",
+			wantErrOut: "dots: unknown flag: --bogus",
 		},
 		{
 			name:       "unknown subcommand",
 			args:       []string{"bogus"},
 			wantCode:   exitError,
-			wantErrOut: `dot: unknown command "bogus"`,
+			wantErrOut: `dots: unknown command "bogus"`,
 		},
 	}
 	for _, tt := range tests {

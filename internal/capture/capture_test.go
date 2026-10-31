@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 const zedSource = "dot_config/zed/modify_private_settings.json"
@@ -40,7 +40,7 @@ type fixture struct {
 }
 
 // newFixture sets up the repo files and returns a Capturer for them. cz runs
-// chezmoi; nil runs it as dot does.
+// chezmoi; nil runs it as dots does.
 func newFixture(t *testing.T, cz *chezmoi.Client) *fixture {
 	t.Helper()
 	f := &fixture{Dotfiles: testenv.NewDotfiles(t, repoFiles), t: t}
@@ -304,7 +304,7 @@ func TestCaptureRefuses(t *testing.T) {
 		{name: "home itself", target: ".", wantErr: "the home directory itself cannot be named"},
 		{name: "the repo", target: "dotfiles", wantErr: "~/dotfiles is the dotfiles repo or holds it"},
 		{name: "in the repo", target: "dotfiles/home/dot_a", wantErr: "is the dotfiles repo or holds it"},
-		{name: "missing", target: ".nope", wantErr: "~/.nope does not exist on this machine; dot apply puts back the repo's version, and dot rm deletes it"},
+		{name: "missing", target: ".nope", wantErr: "~/.nope does not exist on this machine; dots apply puts back the repo's version, and dots rm deletes it"},
 		{
 			name:    "protected",
 			setup:   func(f *fixture) { testenv.WriteFile(f.t, f.home(".ssh/id_ed25519"), "key\n") },

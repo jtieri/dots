@@ -9,8 +9,8 @@ import (
 	"encoding/hex"
 	"path/filepath"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
 )
 
 // A Kind says what applying does to a path, and whether the path was changed

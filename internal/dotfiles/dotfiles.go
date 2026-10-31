@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/git"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/git"
 )
 
 // ErrNotSetUp is returned when chezmoi has no source directory on this
@@ -68,7 +68,7 @@ func (d *Dotfiles) HomePath(repoPath string) (rel string, ok bool) {
 }
 
 // Target returns target, an absolute path, relative to the home directory and
-// slash-separated. It refuses paths dot never acts on: those outside the
+// slash-separated. It refuses paths dots never acts on: those outside the
 // home directory, the home directory itself, and the repo or a folder that
 // holds it.
 func (d *Dotfiles) Target(target string) (string, error) {

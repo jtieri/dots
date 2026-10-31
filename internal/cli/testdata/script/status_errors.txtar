@@ -1,13 +1,13 @@
-# Without chezmoi set up, dot status says so and exits 2.
-exitcode 2 dot status
+# Without chezmoi set up, dots status says so and exits 2.
+exitcode 2 dots status
 ! stdout .
-stderr '^dot: chezmoi is not set up on this machine; run chezmoi init first$'
+stderr '^dots: chezmoi is not set up on this machine; run chezmoi init first$'
 
 # Bad usage also exits 2.
-exitcode 2 dot status extra
-stderr 'unknown command "extra" for "dot status"'
-exitcode 2 dot status --bogus
-stderr '^dot: unknown flag: --bogus$'
+exitcode 2 dots status extra
+stderr 'unknown command "extra" for "dots status"'
+exitcode 2 dots status --bogus
+stderr '^dots: unknown flag: --bogus$'
 
-exitcode 0 dot status --help
+exitcode 0 dots status --help
 stdout 'Exits 0 when everything is in sync'

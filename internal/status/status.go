@@ -12,16 +12,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/git"
-	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/git"
+	"github.com/jtieri/dots/internal/run"
 )
 
 // Version is the version of the report's JSON form. It changes only when a
 // field is removed or changes meaning.
 const Version = 1
 
-// Options control what Check looks at. dot fills them from its settings.
+// Options control what Check looks at. dots fills them from its settings.
 type Options struct {
 	// Branch is the branch every machine should be on.
 	Branch string

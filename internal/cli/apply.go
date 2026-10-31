@@ -9,11 +9,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/apply"
-	"github.com/jtieri/dot/internal/backup"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/proc"
+	"github.com/jtieri/dots/internal/apply"
+	"github.com/jtieri/dots/internal/backup"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/proc"
 )
 
 // applyFlags answer apply's questions in advance, for use without a terminal.
@@ -28,15 +28,15 @@ func newApplyCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apply",
 		Short: "Make the home directory match the repo",
-		Long: `Make the home directory match the repo. dot first shows what would change
+		Long: `Make the home directory match the repo. dots first shows what would change
 and asks before changing anything.
 
 Files changed on this machine since chezmoi last wrote them are listed on
-their own, and dot asks whether to keep them or overwrite them. Overwritten
-files are copied to $XDG_STATE_HOME/dot/overwritten first, unless
+their own, and dots asks whether to keep them or overwrite them. Overwritten
+files are copied to $XDG_STATE_HOME/dots/overwritten first, unless
 overwrite_backup.enabled is false.
 
-Without a terminal dot cannot ask, so --yes is needed, together with
+Without a terminal dots cannot ask, so --yes is needed, together with
 --keep-local or --overwrite-local when files changed here would be replaced.
 
 Exits 0 when the repo was applied or there was nothing to apply, 1 when it
@@ -218,9 +218,9 @@ func (a *app) reportApplied(ctx context.Context) error {
 	case 0:
 		fmt.Fprintln(a.streams.Out, "\nDone. The home directory matches the repo.")
 	case 1:
-		fmt.Fprintln(a.streams.Out, "\nDone. 1 file still differs from the repo; dot status lists it.")
+		fmt.Fprintln(a.streams.Out, "\nDone. 1 file still differs from the repo; dots status lists it.")
 	default:
-		fmt.Fprintf(a.streams.Out, "\nDone. %d files still differ from the repo; dot status lists them.\n", differ)
+		fmt.Fprintf(a.streams.Out, "\nDone. %d files still differ from the repo; dots status lists them.\n", differ)
 	}
 	return nil
 }

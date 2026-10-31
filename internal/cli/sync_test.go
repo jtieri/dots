@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // newSyncFixture returns a home where another machine has pushed a new
@@ -81,7 +81,7 @@ func TestSyncWithoutTerminal(t *testing.T) {
 		wantApplied bool
 		wantErrOut  string
 	}{
-		{name: "no flags", wantCode: exitError, wantErrOut: "dot: nothing applied: there is no terminal to ask at"},
+		{name: "no flags", wantCode: exitError, wantErrOut: "dots: nothing applied: there is no terminal to ask at"},
 		{name: "yes", args: []string{"--yes"}, wantCode: exitOK, wantApplied: true},
 		{name: "yes with local changes", local: true, args: []string{"--yes"}, wantCode: exitError, wantErrOut: "add --keep-local or --overwrite-local"},
 		{name: "keep", local: true, args: []string{"--keep-local"}, wantCode: exitOK, wantApplied: true},
@@ -125,7 +125,7 @@ func TestSyncStops(t *testing.T) {
 				f.Git(t, "commit", "--quiet", "--all", "--message=here")
 			},
 			wantBehind: 1,
-			wantErrOut: "dot: nothing was pulled, because this machine and the remote both have new commits " +
+			wantErrOut: "dots: nothing was pulled, because this machine and the remote both have new commits " +
 				"(1 commit not pushed, 1 commit not pulled); combine them with git",
 		},
 		{
@@ -135,8 +135,8 @@ func TestSyncStops(t *testing.T) {
 				testenv.WriteFile(t, filepath.Join(f.Source, "dot_update"), "update from this machine\n")
 			},
 			wantBehind: 1,
-			wantErrOut: "dot: nothing was pulled, because it would overwrite uncommitted changes in the repo to ~/.update; " +
-				"commit or discard them, then run dot sync again\n",
+			wantErrOut: "dots: nothing was pulled, because it would overwrite uncommitted changes in the repo to ~/.update; " +
+				"commit or discard them, then run dots sync again\n",
 		},
 		{
 			name: "detached",
@@ -144,16 +144,16 @@ func TestSyncStops(t *testing.T) {
 				t.Helper()
 				f.Git(t, "checkout", "--quiet", "--detach")
 			},
-			wantErrOut: "dot: the repo is not on a branch, so there is nothing to pull; switch to main with git switch\n",
+			wantErrOut: "dots: the repo is not on a branch, so there is nothing to pull; switch to main with git switch\n",
 		},
 		{
 			name: "no upstream",
 			setup: func(t *testing.T, f *fixture) {
 				t.Helper()
 				f.Git(t, "checkout", "--quiet", "-b", "local-only")
-				t.Setenv("DOT_BRANCH", "local-only")
+				t.Setenv("DOTS_BRANCH", "local-only")
 			},
-			wantErrOut: "dot: branch local-only does not track a remote branch, so there is nothing to pull",
+			wantErrOut: "dots: branch local-only does not track a remote branch, so there is nothing to pull",
 		},
 	}
 	for _, tt := range tests {
@@ -202,7 +202,7 @@ func TestSyncOffline(t *testing.T) {
 				!strings.Contains(errOut, ".\nShowing what the repo already has.\n\n") {
 				t.Errorf("stderr = %q, want it to start saying the fetch failed", errOut)
 			}
-			if want := "dot: nothing was pulled from the remote\n"; !strings.HasSuffix(errOut, want) {
+			if want := "dots: nothing was pulled from the remote\n"; !strings.HasSuffix(errOut, want) {
 				t.Errorf("stderr = %q, want it to end with %q", errOut, want)
 			}
 			if want := "Will update\n  ~/.here\n"; !strings.HasPrefix(out, want) {

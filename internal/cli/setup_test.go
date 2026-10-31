@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/lock"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/lock"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestRefusesRoot(t *testing.T) {
@@ -18,7 +18,7 @@ func TestRefusesRoot(t *testing.T) {
 	if got := execute([]string{"status"}, a); got != exitError {
 		t.Errorf("execute(status) as root = %d, want %d", got, exitError)
 	}
-	if out.Len() != 0 || !strings.Contains(errOut.String(), "dot: refusing to run as root") {
+	if out.Len() != 0 || !strings.Contains(errOut.String(), "dots: refusing to run as root") {
 		t.Errorf("stdout %q, stderr %q; want nothing and a refusal", out, errOut)
 	}
 
@@ -46,8 +46,8 @@ func TestLockBusy(t *testing.T) {
 	if got := execute([]string{"status"}, a); got != exitError {
 		t.Errorf("execute(status) while locked = %d, want %d", got, exitError)
 	}
-	if out.Len() != 0 || !strings.Contains(errOut.String(), "dot: another dot is running") {
-		t.Errorf("stdout %q, stderr %q; want nothing and a message about the other dot", out, errOut)
+	if out.Len() != 0 || !strings.Contains(errOut.String(), "dots: another dots command is running") {
+		t.Errorf("stdout %q, stderr %q; want nothing and a message about the other dots command", out, errOut)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestLockWaitsAtTerminal(t *testing.T) {
 	if got := execute([]string{"status"}, a); got != exitOK {
 		t.Errorf("execute(status) = %d, want %d; stderr %q", got, exitOK, errOut)
 	}
-	if errOut.String() != "Waiting for another dot to finish...\n" || out.String() != "In sync.\n" {
+	if errOut.String() != "Waiting for another dots command to finish...\n" || out.String() != "In sync.\n" {
 		t.Errorf("stdout %q, stderr %q; want In sync. after waiting", out, errOut)
 	}
 }

@@ -7,15 +7,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/config"
-	"github.com/jtieri/dot/internal/text"
+	"github.com/jtieri/dots/internal/config"
+	"github.com/jtieri/dots/internal/text"
 )
 
 // everyday lists the commands the cheat sheet shows, in its order, with what
 // each runs underneath.
 var everyday = []struct{ name, underneath string }{
 	{"status", "git fetch, git status, chezmoi status, chezmoi unmanaged"},
-	{"sync", "git fetch, git merge --ff-only, then as dot apply"},
+	{"sync", "git fetch, git merge --ff-only, then as dots apply"},
 	{"capture", "chezmoi add, after chezmoi add --dry-run to check first"},
 	{"push", "git fetch, pacman -Qqen and -Qqem, git add, git commit, git push"},
 	{"apply", "chezmoi init, chezmoi status, chezmoi apply"},
@@ -29,7 +29,7 @@ func newHelpCmd(a *app) *cobra.Command {
 		Short: "Show the cheat sheet, or help for a command",
 		Long: `With no command, show the cheat sheet: the everyday commands, what each
 runs underneath, and every setting. With a command, show its help, as
-dot command --help does.`,
+dots command --help does.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := cmd.Root()
 			if len(args) == 0 {
@@ -37,7 +37,7 @@ dot command --help does.`,
 			}
 			c, _, err := root.Find(args)
 			if err != nil || c == root {
-				return fmt.Errorf("unknown command %q; dot help lists them", strings.Join(args, " "))
+				return fmt.Errorf("unknown command %q; dots help lists them", strings.Join(args, " "))
 			}
 			return c.Help()
 		},
@@ -47,7 +47,7 @@ dot command --help does.`,
 // cheatSheet writes the cheat sheet for root's commands.
 func cheatSheet(root *cobra.Command) []byte {
 	var b bytes.Buffer
-	b.WriteString("dot keeps the dotfiles on each of your machines in sync, on top of chezmoi\nand git.\n\n")
+	b.WriteString("dots keeps the dotfiles on each of your machines in sync, on top of chezmoi\nand git.\n\n")
 
 	b.WriteString("Everyday commands\n")
 	width := 0
@@ -56,7 +56,7 @@ func cheatSheet(root *cobra.Command) []byte {
 	}
 	for _, e := range everyday {
 		c := commandNamed(root, e.name)
-		fmt.Fprintf(&b, "  dot %-*s  %s\n", width, c.Use, c.Short)
+		fmt.Fprintf(&b, "  dots %-*s  %s\n", width, c.Use, c.Short)
 	}
 
 	b.WriteString("\nWhat each runs underneath\n")
@@ -65,8 +65,8 @@ func cheatSheet(root *cobra.Command) []byte {
 	}
 
 	b.WriteString("\nSettings\n")
-	for _, line := range text.Wrap("In $XDG_CONFIG_HOME/dot/config.toml (~/.config/dot/config.toml), or the file "+
-		"$DOT_CONFIG or --config names. A setting's environment variable overrides the file, and an empty "+
+	for _, line := range text.Wrap("In $XDG_CONFIG_HOME/dots/config.toml (~/.config/dots/config.toml), or the file "+
+		"$DOTS_CONFIG or --config names. A setting's environment variable overrides the file, and an empty "+
 		"one counts as unset. Paths in the home directory are written ~/path, and a list replaces the "+
 		"default rather than adding to it.", 76) {
 		b.WriteString("  " + line + "\n")
@@ -82,7 +82,7 @@ func cheatSheet(root *cobra.Command) []byte {
 		}
 	}
 
-	b.WriteString("\nRun dot <command> --help for more about a command.\n")
+	b.WriteString("\nRun dots <command> --help for more about a command.\n")
 	return b.Bytes()
 }
 

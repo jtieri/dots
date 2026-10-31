@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // newCaptureFixture returns a home whose repo holds ~/.a, ~/.b, a private
@@ -27,7 +27,7 @@ func (f *fixture) source(name string) string {
 	return testenv.ReadFile(f.t, filepath.Join(f.Source, name))
 }
 
-const pushReminder = "\nRun dot push to commit and share the captured changes.\n"
+const pushReminder = "\nRun dots push to commit and share the captured changes.\n"
 
 func TestCapture(t *testing.T) {
 	f := newCaptureFixture(t)
@@ -73,8 +73,8 @@ func TestCaptureNewFile(t *testing.T) {
 		{name: "enter leaves it", input: "\n", terminal: true, wantCode: exitOutOfSync, wantErrOut: "Left ~/.n as it was.\n"},
 		{name: "diff, then yes", input: "d\ny\n", terminal: true, wantCode: exitOK, wantCaptured: true, wantOut: "+++ b/home/dot_n\n"},
 		{name: "unknown answer, then no", input: "x\nn\n", terminal: true, wantCode: exitOutOfSync, wantErrOut: "Please answer with one of the letters in brackets."},
-		{name: "input ends", terminal: true, wantCode: exitError, wantErrOut: "dot: nothing more captured: no answer was given\n"},
-		{name: "no terminal", wantCode: exitError, wantErrOut: "dot: nothing captured from ~/.n: there is no terminal to ask at; use --yes\n"},
+		{name: "input ends", terminal: true, wantCode: exitError, wantErrOut: "dots: nothing more captured: no answer was given\n"},
+		{name: "no terminal", wantCode: exitError, wantErrOut: "dots: nothing captured from ~/.n: there is no terminal to ask at; use --yes\n"},
 		{name: "no terminal, yes", args: []string{"--yes"}, wantCode: exitOK, wantCaptured: true},
 	}
 	for _, tt := range tests {
@@ -135,7 +135,7 @@ func TestCaptureNeedsTerminal(t *testing.T) {
 			before, _ := os.ReadFile(filepath.Join(f.Source, tt.source))
 
 			code, _, errOut := f.run("", false, "capture", "--yes", tt.file)
-			want := "dot: nothing captured from " + tt.file + ": it needs a yes at a terminal, which --yes cannot give\n"
+			want := "dots: nothing captured from " + tt.file + ": it needs a yes at a terminal, which --yes cannot give\n"
 			if code != exitError || !strings.Contains(errOut, tt.wantNote) || !strings.HasSuffix(errOut, want) {
 				t.Errorf("capture --yes = %d, stderr %q; want 2 and %q", code, errOut, want)
 			}
@@ -159,7 +159,7 @@ func TestCaptureRefusalLeavesTheRest(t *testing.T) {
 	testenv.WriteFile(t, f.path(".ssh/id_ed25519"), "key\n")
 	testenv.WriteFile(t, f.path(".a"), "edited\n")
 	code, out, errOut := f.run("", false, "capture", "~/.ssh/id_ed25519", "~/.a")
-	want := "dot: ~/.ssh/id_ed25519 is protected by the capture.protected setting, so it is never copied into the repo\n"
+	want := "dots: ~/.ssh/id_ed25519 is protected by the capture.protected setting, so it is never copied into the repo\n"
 	if code != exitError || errOut != want {
 		t.Errorf("capture = %d, stderr %q; want 2, %q", code, errOut, want)
 	}
@@ -179,7 +179,7 @@ func TestCaptureWalk(t *testing.T) {
 	if code != exitOutOfSync {
 		t.Errorf("capture = %d, want %d; stderr %q", code, exitOutOfSync, errOut)
 	}
-	wantErrOut := "Deleted on this machine, so not captured; dot apply puts it back, or dot rm deletes it everywhere\n  ~/.c\n\n" +
+	wantErrOut := "Deleted on this machine, so not captured; dots apply puts it back, or dots rm deletes it everywhere\n  ~/.c\n\n" +
 		"~/.a changed on this machine.\nCapture ~/.a? [y/d/N] \n" +
 		"~/.b changed on this machine.\nCapture ~/.b? [y/d/N] Left ~/.b as it was.\n"
 	if errOut != wantErrOut {
@@ -197,7 +197,7 @@ func TestCaptureWalkWithoutTerminal(t *testing.T) {
 	f := newCaptureFixture(t)
 	testenv.WriteFile(t, f.path(".a"), "a edited\n")
 	code, _, errOut := f.run("", false, "capture")
-	if want := "dot: nothing captured: there is no terminal to ask at; name the files to capture, or use --yes\n"; code != exitError || errOut != want {
+	if want := "dots: nothing captured: there is no terminal to ask at; name the files to capture, or use --yes\n"; code != exitError || errOut != want {
 		t.Errorf("capture = %d, stderr %q; want 2, %q", code, errOut, want)
 	}
 	if code, out, errOut := f.run("", false, "capture", "--yes"); code != exitOK || out != "Captured ~/.a.\n"+pushReminder {
@@ -230,7 +230,7 @@ func TestCaptureRepoNewer(t *testing.T) {
 	testenv.WriteFile(t, f.path(".a"), "a from here\n")
 	code, _, errOut := f.run("", false, "capture", "~/.a")
 	want := "Changed in the repo since this machine last applied it; capturing replaces the repo's version\n  ~/.a\n" +
-		"dot: nothing captured from ~/.a: there is no terminal to ask at; use --yes\n"
+		"dots: nothing captured from ~/.a: there is no terminal to ask at; use --yes\n"
 	if code != exitError || errOut != want {
 		t.Errorf("capture = %d, stderr %q; want 2, %q", code, errOut, want)
 	}
@@ -254,7 +254,7 @@ func TestCaptureResetPermissions(t *testing.T) {
 	testenv.WriteFile(t, f.path(".a"), "edited\n")
 	chmodFile(t, f.path(".a"), 0o664)
 	code, out, _ := f.run("", false, "capture", "~/.a")
-	want := "Captured ~/.a.\n  The repo cannot keep the permissions of ~/.a, so dot apply will reset them.\n" + pushReminder
+	want := "Captured ~/.a.\n  The repo cannot keep the permissions of ~/.a, so dots apply will reset them.\n" + pushReminder
 	if code != exitOK || out != want {
 		t.Errorf("capture = %d, %q; want 0, %q", code, out, want)
 	}

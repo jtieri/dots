@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dots/internal/run"
 )
 
 // Client runs chezmoi with the configuration it finds on its own, the same

@@ -1,26 +1,26 @@
-# Another machine pushes a change, and dot sync pulls and applies it.
+# Another machine pushes a change, and dots sync pulls and applies it.
 dotfiles
 exec git clone --quiet $WORK/remote.git $WORK/other
 cp newer $WORK/other/home/dot_profile
 exec git -C $WORK/other commit --quiet --all --message=elsewhere
 exec git -C $WORK/other push --quiet
-exitcode 0 dot sync --yes
+exitcode 0 dots sync --yes
 cmp stdout pulled.txt
 cmp $HOME/.profile newer
 
 # Nothing new since.
-exitcode 0 dot sync
+exitcode 0 dots sync
 cmp stdout nothing.txt
 
-# When both machines have committed, dot sync stops and changes nothing.
+# When both machines have committed, dots sync stops and changes nothing.
 cp newer $WORK/other/home/dot_bashrc
 exec git -C $WORK/other commit --quiet --all --message=elsewhere
 exec git -C $WORK/other push --quiet
 cp here $HOME/dotfiles/home/dot_profile
 exec git -C $HOME/dotfiles commit --quiet --all --message=here
-exitcode 2 dot sync --yes
+exitcode 2 dots sync --yes
 ! stdout .
-stderr '^dot: nothing was pulled, because this machine and the remote both have new commits \(1 commit not pushed, 1 commit not pulled\)'
+stderr '^dots: nothing was pulled, because this machine and the remote both have new commits \(1 commit not pushed, 1 commit not pulled\)'
 cmp $HOME/.bashrc shell
 cmp $HOME/.profile newer
 

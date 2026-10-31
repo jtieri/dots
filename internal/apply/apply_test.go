@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dots/internal/dotfiles"
 )
 
 var now = time.Date(2026, 10, 25, 14, 2, 5, 0, time.Local)

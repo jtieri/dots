@@ -4,7 +4,7 @@ import "testing"
 
 func TestStyle(t *testing.T) {
 	plain := Style{}
-	if got := plain.Heading("Home") + plain.Good("ok") + plain.Bad("dot:"); got != "Homeokdot:" {
+	if got := plain.Heading("Home") + plain.Good("ok") + plain.Bad("dots:"); got != "Homeokdots:" {
 		t.Errorf("plain Style = %q, want the text as it is", got)
 	}
 	on := New(true)
@@ -14,7 +14,7 @@ func TestStyle(t *testing.T) {
 	if got, want := on.Good("In sync."), "\x1b[32mIn sync.\x1b[0m"; got != want {
 		t.Errorf("Good() = %q, want %q", got, want)
 	}
-	if got, want := on.Bad("dot:"), "\x1b[1;31mdot:\x1b[0m"; got != want {
+	if got, want := on.Bad("dots:"), "\x1b[1;31mdots:\x1b[0m"; got != want {
 		t.Errorf("Bad() = %q, want %q", got, want)
 	}
 	if got := on.Heading(""); got != "" {

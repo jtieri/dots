@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dots/internal/run"
 )
 
 // Vars returns the environment variables, as "name=value" pairs, that point
@@ -39,7 +39,7 @@ var sessionVars = []string{
 }
 
 // Isolate sets the variables from Vars for a new temporary home and unsets
-// those that would reach the desktop session or carry dot's own settings, so
+// those that would reach the desktop session or carry the settings for dots, so
 // nothing a test runs can touch the real home or running programs. It
 // returns the temporary home.
 func Isolate(t *testing.T) string {
@@ -55,7 +55,7 @@ func Isolate(t *testing.T) string {
 	// Output is plain unless a test asks for color.
 	t.Setenv("NO_COLOR", "1")
 	for _, kv := range os.Environ() {
-		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "DOT_") {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "DOTS_") {
 			unsetenv(t, name)
 		}
 	}
@@ -71,7 +71,7 @@ func unsetenv(t *testing.T, name string) {
 	}
 }
 
-// A Dotfiles is a home directory set up the way dot expects: a dotfiles repo
+// A Dotfiles is a home directory set up the way dots expects: a dotfiles repo
 // with a remote, and chezmoi applied from it.
 type Dotfiles struct {
 	Home string

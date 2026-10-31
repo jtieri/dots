@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/backup"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/untrack"
+	"github.com/jtieri/dots/internal/backup"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/untrack"
 )
 
 func newRmCmd(a *app) *cobra.Command {
@@ -19,14 +19,14 @@ func newRmCmd(a *app) *cobra.Command {
 		Short: "Stop tracking files and delete them on every machine",
 		Long: `Stop tracking files and delete them on every machine, this one included.
 
-dot takes them out of the repo and lists them in the repo's .chezmoiremove,
+dots takes them out of the repo and lists them in the repo's .chezmoiremove,
 so each machine deletes them the next time it applies the repo, after its
 preview says so. A folder is listed file by file, so other machines keep the
 folder and any files of their own in it. This machine's copies are saved to
-$XDG_STATE_HOME/dot/overwritten first, unless overwrite_backup.enabled is
-false. dot never commits; dot push does.
+$XDG_STATE_HOME/dots/overwritten first, unless overwrite_backup.enabled is
+false. dots never commits; dots push does.
 
-Without a terminal dot cannot ask, so --yes is needed.
+Without a terminal dots cannot ask, so --yes is needed.
 
 Exits 0 when the files were removed, 1 when it was canceled, and 2 on
 errors.`,
@@ -39,11 +39,11 @@ func newForgetCmd(a *app) *cobra.Command {
 		Short: "Stop tracking files but keep every machine's copy",
 		Long: `Stop tracking files, leaving every machine's copy where it is.
 
-dot takes them out of the repo and lists them in the repo's .chezmoiignore,
-so the copies are not reported as files the repo does not track. dot never
-commits; dot push does.
+dots takes them out of the repo and lists them in the repo's .chezmoiignore,
+so the copies are not reported as files the repo does not track. dots never
+commits; dots push does.
 
-Without a terminal dot cannot ask, so --yes is needed.
+Without a terminal dots cannot ask, so --yes is needed.
 
 Exits 0 when the files were forgotten, 1 when it was canceled, and 2 on
 errors.`,
@@ -60,7 +60,7 @@ func newUntrackCmd(a *app, mode untrack.Mode, cmd *cobra.Command) *cobra.Command
 	return cmd
 }
 
-// untrackWords are what dot rm and dot forget say about what they do.
+// untrackWords are what dots rm and dots forget say about what they do.
 var untrackWords = map[untrack.Mode]struct {
 	heading, verb, done string
 }{
@@ -134,7 +134,7 @@ func (a *app) untrack(ctx context.Context, args []string, mode untrack.Mode, yes
 		if err := backup.Prune(backupDir, a.cfg.OverwriteBackup.KeepDays, opts.Now); err != nil {
 			return fmt.Errorf("deleting old copies of overwritten files: %w", err)
 		}
-		fmt.Fprintln(a.streams.Out, "\nRun dot push to commit and share the change.")
+		fmt.Fprintln(a.streams.Out, "\nRun dots push to commit and share the change.")
 	}
 	if failed {
 		return errReported

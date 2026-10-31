@@ -1,4 +1,4 @@
-// Package backup keeps copies of files that dot is about to overwrite.
+// Package backup keeps copies of files that dots is about to overwrite.
 //
 // Each overwrite gets a folder of its own under the backup directory, named
 // for the time it happened, holding the files at their paths relative to the
@@ -19,14 +19,14 @@ import (
 // some tools treat specially in file names.
 const layout = "2006-01-02T15-04-05"
 
-// DefaultDir returns $XDG_STATE_HOME/dot/overwritten, using the XDG default
+// DefaultDir returns $XDG_STATE_HOME/dots/overwritten, using the XDG default
 // of ~/.local/state when XDG_STATE_HOME is unset.
 func DefaultDir(home string) string {
 	state := os.Getenv("XDG_STATE_HOME")
 	if state == "" {
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "dot", "overwritten")
+	return filepath.Join(state, "dots", "overwritten")
 }
 
 // Save copies the files at paths, relative to home, into a new folder in dir

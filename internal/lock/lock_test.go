@@ -9,7 +9,7 @@ import (
 )
 
 func TestAcquire(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "dot", "lock")
+	path := filepath.Join(t.TempDir(), "dots", "lock")
 	ctx := t.Context()
 
 	release, err := Acquire(ctx, path, false, nil)
@@ -69,12 +69,12 @@ func TestAcquireWaitCanceled(t *testing.T) {
 
 func TestDefaultPath(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
-	if got, _ := DefaultPath(); got != "/run/user/1000/dot/lock" {
-		t.Errorf("DefaultPath() = %q, want /run/user/1000/dot/lock", got)
+	if got, _ := DefaultPath(); got != "/run/user/1000/dots/lock" {
+		t.Errorf("DefaultPath() = %q, want /run/user/1000/dots/lock", got)
 	}
 	t.Setenv("XDG_RUNTIME_DIR", "")
 	t.Setenv("XDG_CACHE_HOME", "/home/me/.cache")
-	if got, _ := DefaultPath(); got != "/home/me/.cache/dot/lock" {
-		t.Errorf("DefaultPath() without XDG_RUNTIME_DIR = %q, want /home/me/.cache/dot/lock", got)
+	if got, _ := DefaultPath(); got != "/home/me/.cache/dots/lock" {
+		t.Errorf("DefaultPath() without XDG_RUNTIME_DIR = %q, want /home/me/.cache/dots/lock", got)
 	}
 }

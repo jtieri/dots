@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // fixture is a home set up by testenv.NewDotfiles, with helpers for running
-// dot in it.
+// dots in it.
 type fixture struct {
 	*testenv.Dotfiles
 	t *testing.T
@@ -43,7 +43,7 @@ func (f *fixture) read(name string) string {
 	return string(data)
 }
 
-// run runs dot with args, answering prompts with input. terminal says whether
+// run runs dots with args, answering prompts with input. terminal says whether
 // stdin and stderr are terminals.
 func (f *fixture) run(input string, terminal bool, args ...string) (code int, out, errOut string) {
 	f.t.Helper()
@@ -77,7 +77,7 @@ func TestApplyAnswers(t *testing.T) {
 		{name: "enter cancels", input: "\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed in the home directory."},
 		{name: "no", input: "n\n", wantCode: exitOutOfSync, wantErrOut: "Nothing changed in the home directory."},
 		{name: "unknown answer, then no", input: "k\nn\n", wantCode: exitOutOfSync, wantErrOut: "Please answer with one of the letters in brackets."},
-		{name: "input ends", input: "", wantCode: exitError, wantErrOut: "dot: nothing applied: no answer was given"},
+		{name: "input ends", input: "", wantCode: exitError, wantErrOut: "dots: nothing applied: no answer was given"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestApplyLocalChanges(t *testing.T) {
 	}{
 		{
 			name: "keep", input: "k\n", wantCode: exitOK, wantHere: "edited here\n",
-			wantOut: "Done. 1 file still differs from the repo; dot status lists it.\n",
+			wantOut: "Done. 1 file still differs from the repo; dots status lists it.\n",
 		},
 		{
 			name: "overwrite", input: "o\n", wantCode: exitOK, wantHere: "here\n", wantBackup: true,
@@ -143,7 +143,7 @@ func TestApplyLocalChanges(t *testing.T) {
 		},
 		{
 			name: "overwrite without backups", input: "o\n", wantCode: exitOK, wantHere: "here\n",
-			env: map[string]string{"DOT_OVERWRITE_BACKUP_ENABLED": "false"},
+			env: map[string]string{"DOTS_OVERWRITE_BACKUP_ENABLED": "false"},
 		},
 		{name: "y is not a choice here", input: "y\nn\n", wantCode: exitOutOfSync, wantHere: "edited here\n"},
 		{name: "cancel", input: "\n", wantCode: exitOutOfSync, wantHere: "edited here\n"},
@@ -173,11 +173,11 @@ func TestApplyLocalChanges(t *testing.T) {
 			if !strings.HasSuffix(out, tt.wantOut) {
 				t.Errorf("stdout = %q, want it to end with %q", out, tt.wantOut)
 			}
-			backups, _ := filepath.Glob(f.path(".local/state/dot/overwritten/*/.here"))
+			backups, _ := filepath.Glob(f.path(".local/state/dots/overwritten/*/.here"))
 			if gotBackup := len(backups) == 1; gotBackup != tt.wantBackup {
 				t.Errorf("backups of .here = %v, want one: %t", backups, tt.wantBackup)
 			}
-			if tt.wantBackup && !strings.Contains(errOut, "Copies of the overwritten files are in "+f.path(".local/state/dot/overwritten/")) {
+			if tt.wantBackup && !strings.Contains(errOut, "Copies of the overwritten files are in "+f.path(".local/state/dots/overwritten/")) {
 				t.Errorf("stderr = %q, want it to say where the copies are", errOut)
 			}
 		})
@@ -192,7 +192,7 @@ func TestApplyWithoutTerminal(t *testing.T) {
 		wantCode   int
 		wantErrOut string
 	}{
-		{name: "no flags", wantCode: exitError, wantErrOut: "dot: nothing applied: there is no terminal to ask at; use --yes"},
+		{name: "no flags", wantCode: exitError, wantErrOut: "dots: nothing applied: there is no terminal to ask at; use --yes"},
 		{name: "yes", args: []string{"--yes"}, wantCode: exitOK},
 		{name: "yes with local changes", local: true, args: []string{"--yes"}, wantCode: exitError, wantErrOut: "add --keep-local or --overwrite-local"},
 		{name: "yes and keep", local: true, args: []string{"-y", "--keep-local"}, wantCode: exitOK},
@@ -217,7 +217,7 @@ func TestApplyWithoutTerminal(t *testing.T) {
 
 func TestApplyPrunesOldBackups(t *testing.T) {
 	f := newApplyFixture(t)
-	old := f.path(".local/state/dot/overwritten/2020-01-01T00-00-00")
+	old := f.path(".local/state/dots/overwritten/2020-01-01T00-00-00")
 	testenv.WriteFile(t, filepath.Join(old, ".here"), "old\n")
 	if code, _, errOut := f.run("", false, "apply", "--yes"); code != exitOK {
 		t.Fatalf("apply = %d, stderr %q", code, errOut)
@@ -229,30 +229,30 @@ func TestApplyPrunesOldBackups(t *testing.T) {
 
 func TestApplyRestartNotices(t *testing.T) {
 	f := newApplyFixture(t)
-	testenv.WriteFile(t, f.path(".config/dot/config.toml"), `
+	testenv.WriteFile(t, f.path(".config/dots/config.toml"), `
 [[restart_notices]]
-program = "dot-test-editor"
+program = "dots-test-editor"
 files = ["~/.update", "~/.here"]
 
 [[restart_notices]]
-program = "dot-test-idle"
+program = "dots-test-idle"
 files = ["~/.update"]
 
 [[restart_notices]]
-program = "dot-test-bar"
+program = "dots-test-bar"
 files = ["~/.unrelated"]
 `)
-	testenv.StartProgram(t, "dot-test-editor")
-	testenv.StartProgram(t, "dot-test-bar")
+	testenv.StartProgram(t, "dots-test-editor")
+	testenv.StartProgram(t, "dots-test-bar")
 	code, _, errOut := f.run("", false, "apply", "--yes")
 	if code != exitOK {
 		t.Fatalf("apply = %d, stderr %q", code, errOut)
 	}
-	if want := "dot-test-editor is running; restart it so it uses the new ~/.update.\n"; !strings.HasSuffix(errOut, want) {
+	if want := "dots-test-editor is running; restart it so it uses the new ~/.update.\n"; !strings.HasSuffix(errOut, want) {
 		t.Errorf("stderr = %q, want it to end with %q", errOut, want)
 	}
-	// dot-test-idle is not running, and dot-test-bar's file did not change.
-	if strings.Contains(errOut, "dot-test-idle") || strings.Contains(errOut, "dot-test-bar") {
+	// dots-test-idle is not running, and dots-test-bar's file did not change.
+	if strings.Contains(errOut, "dots-test-idle") || strings.Contains(errOut, "dots-test-bar") {
 		t.Errorf("stderr = %q, want no notice for the other programs", errOut)
 	}
 }

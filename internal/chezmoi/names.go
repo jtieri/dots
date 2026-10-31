@@ -20,7 +20,7 @@ func TargetPath(sourceRel string) (target string, ok bool) {
 }
 
 // Attributes are what a source name says about its target, beyond its name.
-// Only the attributes dot acts on are reported.
+// Only the attributes dots acts on are reported.
 type Attributes struct {
 	// Create means the target is written only when it does not exist.
 	Create bool

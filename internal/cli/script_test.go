@@ -12,13 +12,13 @@ import (
 
 	"github.com/rogpeppe/go-internal/testscript"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"dot": func() { os.Exit(Main(os.Args[1:], iostreams.System())) },
+		"dots": func() { os.Exit(Main(os.Args[1:], iostreams.System())) },
 	})
 }
 

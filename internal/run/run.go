@@ -1,4 +1,4 @@
-// Package run runs the external programs dot is built on, such as chezmoi
+// Package run runs the external programs dots is built on, such as chezmoi
 // and git.
 package run
 

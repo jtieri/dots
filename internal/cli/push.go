@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/git"
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/push"
-	"github.com/jtieri/dot/internal/run"
-	"github.com/jtieri/dot/internal/text"
+	"github.com/jtieri/dots/internal/git"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/push"
+	"github.com/jtieri/dots/internal/run"
+	"github.com/jtieri/dots/internal/text"
 )
 
 func newPushCmd(a *app) *cobra.Command {
@@ -20,21 +20,21 @@ func newPushCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push [message]",
 		Short: "Commit the repo's changes and push them",
-		Long: `Commit the changes in the dotfiles repo and push them, so that dot sync
+		Long: `Commit the changes in the dotfiles repo and push them, so that dots sync
 brings them to your other machines.
 
-dot fetches first, and stops if the remote has commits this machine has not
-pulled; dot sync pulls them. It refreshes this machine's package lists in
+dots fetches first, and stops if the remote has commits this machine has not
+pulled; dots sync pulls them. It refreshes this machine's package lists in
 the repo (see push.package_lists), shows what the commit would contain, and
 asks for a message, "update from <host>, <date and time>" unless you give
 one, before asking to commit. Commits made earlier and not yet pushed are
 pushed too. Files changed on this machine but not captured are listed and
-left out; dot capture copies them into the repo.
+left out; dots capture copies them into the repo.
 
-When the remote cannot be reached, dot offers to commit without pushing, and
-the next dot push sends the commit.
+When the remote cannot be reached, dots offers to commit without pushing, and
+the next dots push sends the commit.
 
-Without a terminal dot cannot ask, so --yes is needed, and the message is the
+Without a terminal dots cannot ask, so --yes is needed, and the message is the
 one given or the default.
 
 Exits 0 when everything was pushed or there was nothing to push, 1 when it
@@ -76,7 +76,7 @@ func (a *app) push(ctx context.Context, message string, yes bool) error {
 	}
 	if behind > 0 {
 		return fmt.Errorf("nothing was committed, because the remote has %s this machine has not pulled; "+
-			"run dot sync, then dot push again", text.Pluralize(behind, "commit"))
+			"run dots sync, then dots push again", text.Pluralize(behind, "commit"))
 	}
 
 	plan, err := push.Prepare(ctx, d, push.Options{
@@ -87,8 +87,8 @@ func (a *app) push(ctx context.Context, message string, yes bool) error {
 		return err
 	}
 	writeList(a.streams.ErrOut, a.streams.ErrStyle, tildes(plan.Uncaptured),
-		"Changed on this machine but not captured, so left out; dot capture copies it into the repo",
-		"Changed on this machine but not captured, so left out; dot capture copies them into the repo")
+		"Changed on this machine but not captured, so left out; dots capture copies it into the repo",
+		"Changed on this machine but not captured, so left out; dots capture copies them into the repo")
 	if len(plan.Uncaptured) > 0 {
 		fmt.Fprintln(a.streams.ErrOut)
 	}
@@ -125,19 +125,19 @@ func (a *app) push(ctx context.Context, message string, yes bool) error {
 		ahead++
 	}
 	if !online {
-		return fmt.Errorf("%s, because the remote could not be reached; the next dot push sends it", notPushed)
+		return fmt.Errorf("%s, because the remote could not be reached; the next dots push sends it", notPushed)
 	}
 	if err := d.Repo.Push(ctx); err != nil {
 		if errors.Is(err, git.ErrRejected) {
-			return fmt.Errorf("%s, because the remote has new commits; run dot sync, then dot push again", notPushed)
+			return fmt.Errorf("%s, because the remote has new commits; run dots sync, then dots push again", notPushed)
 		}
-		return fmt.Errorf("%s: %s; dot push tries again", notPushed, run.Reason(err))
+		return fmt.Errorf("%s: %s; dots push tries again", notPushed, run.Reason(err))
 	}
 	fmt.Fprintf(a.streams.Out, "Pushed %s.\n", text.Pluralize(ahead, "commit"))
 	return nil
 }
 
-// writePushPreview shows what the commit would contain, grouped as dot
+// writePushPreview shows what the commit would contain, grouped as dots
 // apply's preview is, and the earlier commits that go with it.
 func (a *app) writePushPreview(plan *push.Plan, ahead int) {
 	var changed, added, deleted, renamed []string

@@ -1,4 +1,4 @@
-// Package cli implements dot's command line.
+// Package cli implements the dots command line.
 package cli
 
 import (
@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/style"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/style"
 )
 
 // Exit codes follow grep: 0 for success, 1 when there is something to act
@@ -32,7 +32,7 @@ var errOutOfSync = errors.New("out of sync")
 // Main exits 2 without printing it.
 var errReported = errors.New("errors reported")
 
-// Main runs dot with args and returns the process exit code. Ctrl-C cancels
+// Main runs dots with args and returns the process exit code. Ctrl-C cancels
 // the running command, which stops the programs it started.
 func Main(args []string, streams *iostreams.Streams) int {
 	return execute(args, &app{streams: streams, euid: os.Geteuid()})
@@ -63,9 +63,9 @@ func execute(args []string, a *app) int {
 func newRootCmd(a *app) *cobra.Command {
 	var colorFlag string
 	cmd := &cobra.Command{
-		Use:   "dot",
+		Use:   "dots",
 		Short: "Keep your dotfiles in sync across machines",
-		Long: `dot keeps the dotfiles on each of your machines in sync. It works on top
+		Long: `dots keeps the dotfiles on each of your machines in sync. It works on top
 of chezmoi and git: it reports what differs, and shows you each change before
 making it.`,
 		Version:       version(),
@@ -94,9 +94,9 @@ making it.`,
 	cmd.SetIn(a.streams.In)
 	cmd.SetOut(a.streams.Out)
 	cmd.SetErr(a.streams.ErrOut)
-	cmd.SetVersionTemplate("dot {{.Version}}\n")
+	cmd.SetVersionTemplate("dots {{.Version}}\n")
 	cmd.PersistentFlags().StringVar(&a.configFile, "config", "",
-		"read settings from `file` instead of $DOT_CONFIG or ~/.config/dot/config.toml")
+		"read settings from `file` instead of $DOTS_CONFIG or ~/.config/dots/config.toml")
 	cmd.PersistentFlags().StringVar(&colorFlag, "color", string(style.Auto),
 		"when to color the output: auto (on a terminal, unless NO_COLOR is set), always or never")
 	cmd.PersistentFlags().BoolVar(&a.streams.NoPager, "no-pager", false,
@@ -108,7 +108,7 @@ making it.`,
 }
 
 // version reports the version Go recorded in the binary: the module version
-// for "go install github.com/jtieri/dot@v1.2.3", or a pseudo-version derived
+// for "go install github.com/jtieri/dots@v1.2.3", or a pseudo-version derived
 // from git for a build inside the repository.
 func version() string {
 	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {

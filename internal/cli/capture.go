@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/capture"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/style"
+	"github.com/jtieri/dots/internal/capture"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/style"
 )
 
 func newCaptureCmd(a *app) *cobra.Command {
@@ -21,18 +21,18 @@ func newCaptureCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "capture [file...]",
 		Short: "Copy files changed on this machine into the repo",
-		Long: `Copy files changed on this machine into the repo, so that dot push can
+		Long: `Copy files changed on this machine into the repo, so that dots push can
 share them with your other machines. Name the files or folders to capture, or
 name none to go through each file changed here since chezmoi last wrote it.
 
-dot asks first when a file is new to the repo, when the repo has a version of
+dots asks first when a file is new to the repo, when the repo has a version of
 it this machine has not applied, when a private file would become readable to
 others, or when chezmoi's secret scanner flags it. Files matching
 capture.protected are never captured. A file the repo makes from a template
-is refused, unless modify_templates lists it, in which case dot rewrites the
-template from it. dot never commits; dot push does.
+is refused, unless modify_templates lists it, in which case dots rewrites the
+template from it. dots never commits; dots push does.
 
-Without a terminal dot cannot ask, so --yes is needed. --yes never makes a
+Without a terminal dots cannot ask, so --yes is needed. --yes never makes a
 private file readable to others or captures a possible secret: those need a
 yes at a terminal.
 
@@ -66,8 +66,8 @@ func (a *app) capture(ctx context.Context, args []string, yes bool) error {
 	if walk {
 		if deleted := c.Deleted(); len(deleted) > 0 {
 			writeList(a.streams.ErrOut, a.streams.ErrStyle, tildes(deleted),
-				"Deleted on this machine, so not captured; dot apply puts it back, or dot rm deletes it everywhere",
-				"Deleted on this machine, so not captured; dot apply puts them back, or dot rm deletes them everywhere")
+				"Deleted on this machine, so not captured; dots apply puts it back, or dots rm deletes it everywhere",
+				"Deleted on this machine, so not captured; dots apply puts them back, or dots rm deletes them everywhere")
 			fmt.Fprintln(a.streams.ErrOut)
 			leftAlone = true
 		}
@@ -110,7 +110,7 @@ func (a *app) capture(ctx context.Context, args []string, yes bool) error {
 		}
 	}
 	if anyCaptured {
-		fmt.Fprintln(a.streams.Out, "\nRun dot push to commit and share the captured changes.")
+		fmt.Fprintln(a.streams.Out, "\nRun dots push to commit and share the captured changes.")
 	}
 	switch {
 	case failed:
@@ -170,7 +170,7 @@ func (a *app) captureOne(ctx context.Context, c *capture.Capturer, target string
 	}
 	fmt.Fprintf(a.streams.Out, "Captured %s.\n", name)
 	for _, rel := range reset {
-		fmt.Fprintf(a.streams.Out, "  The repo cannot keep the permissions of %s, so dot apply will reset them.\n",
+		fmt.Fprintf(a.streams.Out, "  The repo cannot keep the permissions of %s, so dots apply will reset them.\n",
 			dotfiles.Tilde(rel))
 	}
 	return captured, nil
@@ -257,7 +257,8 @@ func tildes(rels []string) []string {
 }
 
 // absHomePath returns the absolute path that arg, a path given on the command
-// line, names. A leading ~ means the home directory, as in dot's own messages.
+// line, names. A leading ~ means the home directory, as in the messages dots
+// prints.
 func absHomePath(arg, home string) (string, error) {
 	if arg == "~" {
 		return home, nil

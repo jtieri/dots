@@ -1,7 +1,7 @@
 # See https://golangci-lint.run/docs/configuration/.
 #
 # The standard linters plus the ones that catch real mistakes in a CLI.
-# Length and complexity limits are left off, and so is gosec: dot runs
+# Length and complexity limits are left off, and so is gosec: dots runs
 # chezmoi and git with arguments built at run time, which gosec flags on
 # every call.
 
@@ -58,4 +58,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/jtieri/dot
+        - github.com/jtieri/dots

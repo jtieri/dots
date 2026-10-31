@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
-// TestInterruptCapture checks that Ctrl-C while chezmoi adds a file stops dot
+// TestInterruptCapture checks that Ctrl-C while chezmoi adds a file stops dots
 // capture with exit code 130 and puts the repo back as it was.
 func TestInterruptCapture(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})

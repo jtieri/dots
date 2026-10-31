@@ -1,4 +1,4 @@
-// Package iostreams provides the input and output streams that dot's
+// Package iostreams provides the input and output streams that the dots
 // commands read from and write to, and the prompts and pager built on them.
 package iostreams
 
@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/jtieri/dot/internal/style"
+	"github.com/jtieri/dots/internal/style"
 )
 
 // Streams holds the standard streams for a command.
@@ -33,7 +33,7 @@ type Streams struct {
 	NoPager bool
 
 	// OutStyle and ErrStyle mark up text written to Out and ErrOut. They
-	// are plain until dot decides, from --color and the environment, to
+	// are plain until dots decides, from --color and the environment, to
 	// color its output.
 	OutStyle, ErrStyle style.Style
 }

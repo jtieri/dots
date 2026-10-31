@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // themeKeep matches Zed's "theme" block, as the dotfiles' setting does.

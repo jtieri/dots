@@ -36,8 +36,8 @@ func TestOutputError(t *testing.T) {
 		},
 		{
 			name:    "program not found",
-			args:    []string{"dot-no-such-program"},
-			wantMsg: `dot-no-such-program: exec: "dot-no-such-program": executable file not found in $PATH`,
+			args:    []string{"dots-no-such-program"},
+			wantMsg: `dots-no-such-program: exec: "dots-no-such-program": executable file not found in $PATH`,
 		},
 	}
 	for _, tt := range tests {

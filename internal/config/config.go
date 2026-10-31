@@ -1,9 +1,9 @@
-// Package config loads dot's settings from its configuration file and the
-// environment.
+// Package config loads the settings for dots from its configuration file and
+// the environment.
 //
 // Each setting comes from, in increasing order of precedence, its default,
 // the configuration file, and its environment variable. The configuration
-// file is $XDG_CONFIG_HOME/dot/config.toml unless DOT_CONFIG or --config
+// file is $XDG_CONFIG_HOME/dots/config.toml unless DOTS_CONFIG or --config
 // names another. Settings are checked strictly: an unknown setting, a value
 // of the wrong type or a value out of range is an error, so a mistyped
 // setting can never be silently ignored.
@@ -27,8 +27,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config holds dot's settings. Paths in the home directory are relative to
-// it, with "." for the home directory itself.
+// Config holds the settings for dots. Paths in the home directory are
+// relative to it, with "." for the home directory itself.
 type Config struct {
 	Branch          string           `mapstructure:"branch"`
 	Capture         Capture          `mapstructure:"capture"`
@@ -40,7 +40,7 @@ type Config struct {
 	RestartNotices  []RestartNotice  `mapstructure:"restart_notices"`
 }
 
-// Capture holds the settings for dot capture.
+// Capture holds the settings for dots capture.
 type Capture struct {
 	// Protected are patterns, as path.Match takes them, for files that are
 	// never captured. A pattern that matches a folder protects everything
@@ -53,7 +53,7 @@ type Leftovers struct {
 	Skip []string `mapstructure:"skip"`
 }
 
-// OverwriteBackup holds the settings for the copies dot keeps of files it is
+// OverwriteBackup holds the settings for the copies dots keeps of files it is
 // told to overwrite.
 type OverwriteBackup struct {
 	Enabled bool `mapstructure:"enabled"`
@@ -61,7 +61,7 @@ type OverwriteBackup struct {
 	KeepDays int `mapstructure:"keep_days"`
 }
 
-// Push holds the settings for dot push.
+// Push holds the settings for dots push.
 type Push struct {
 	// PackageLists is the folder, relative to the top of the repo, that
 	// holds each machine's package lists. Empty leaves them alone.
@@ -76,7 +76,7 @@ type ModifyTemplate struct {
 	Keep *regexp.Regexp `mapstructure:"keep"`
 }
 
-// A RestartNotice asks dot to say when a program should be restarted: when
+// A RestartNotice asks dots to say when a program should be restarted: when
 // applying changes one of Files while the program is running.
 type RestartNotice struct {
 	// Program is the program's process name, as ps shows it.
@@ -84,7 +84,7 @@ type RestartNotice struct {
 	Files   []string `mapstructure:"files"`
 }
 
-// A Setting describes one setting, for loading it and for dot's help.
+// A Setting describes one setting, for loading it and for dots help.
 type Setting struct {
 	// Key is the setting's name in the configuration file, with a dot
 	// between a table and the setting in it.
@@ -125,27 +125,27 @@ func (s Setting) DefaultText() string {
 var Settings = []Setting{
 	{
 		Key:     "branch",
-		Env:     "DOT_BRANCH",
+		Env:     "DOTS_BRANCH",
 		Default: "main",
 		Help:    "The branch every machine should be on.",
 	},
 	{
 		Key:     "capture.protected",
-		Env:     "DOT_CAPTURE_PROTECTED",
+		Env:     "DOTS_CAPTURE_PROTECTED",
 		Default: []string{"~/.ssh/id_*", "~/.gnupg"},
-		Help: "Files dot capture never copies into the repo, such as private keys. A * matches " +
+		Help: "Files dots capture never copies into the repo, such as private keys. A * matches " +
 			"any part of a name, and a folder protects everything in it. Setting it replaces " +
 			"the default list.",
 	},
 	{
 		Key:     "fetch_timeout",
-		Env:     "DOT_FETCH_TIMEOUT",
+		Env:     "DOTS_FETCH_TIMEOUT",
 		Default: "10s",
 		Help:    "How long to wait for the remote when fetching, such as \"10s\" or \"1m\".",
 	},
 	{
 		Key:     "leftovers.skip",
-		Env:     "DOT_LEFTOVERS_SKIP",
+		Env:     "DOTS_LEFTOVERS_SKIP",
 		Default: []string{"~", "~/.config", "~/.ssh"},
 		Help: "Folders the leftovers check does not look in, because they hold personal files " +
 			"beside tracked ones. Setting it replaces the default list.",
@@ -155,40 +155,40 @@ var Settings = []Setting{
 		Default: []ModifyTemplate{},
 		Help: "Files the repo keeps as chezmoi modify templates, as a list of tables with file and " +
 			"keep, a regular expression matching the part of the file each machine keeps for " +
-			"itself. dot capture rewrites the rest of the template from the file, and dot warns " +
+			"itself. dots capture rewrites the rest of the template from the file, and dots warns " +
 			"when one is replaced by a plain copy.",
 	},
 	{
 		Key:     "overwrite_backup.enabled",
-		Env:     "DOT_OVERWRITE_BACKUP_ENABLED",
+		Env:     "DOTS_OVERWRITE_BACKUP_ENABLED",
 		Default: true,
 		Help: "Whether to copy files changed on this machine before overwriting them, to " +
-			"$XDG_STATE_HOME/dot/overwritten/.",
+			"$XDG_STATE_HOME/dots/overwritten/.",
 	},
 	{
 		Key:     "overwrite_backup.keep_days",
-		Env:     "DOT_OVERWRITE_BACKUP_KEEP_DAYS",
+		Env:     "DOTS_OVERWRITE_BACKUP_KEEP_DAYS",
 		Default: 30,
 		Help:    "How many days to keep those copies. 0 keeps them forever.",
 	},
 	{
 		Key:     "push.package_lists",
-		Env:     "DOT_PUSH_PACKAGE_LISTS",
+		Env:     "DOTS_PUSH_PACKAGE_LISTS",
 		Default: "scripts/pkglists",
-		Help: "The folder in the repo, relative to its top, where dot push keeps a folder of " +
+		Help: "The folder in the repo, relative to its top, where dots push keeps a folder of " +
 			"package lists for each machine, named after it. Empty turns the lists off.",
 	},
 	{
 		Key:     "restart_notices",
 		Default: []RestartNotice{},
-		Help: "Programs to restart after dot apply changes their files, as a list of tables " +
-			"with program (the process name) and files. dot says so when one is running.",
+		Help: "Programs to restart after dots apply changes their files, as a list of tables " +
+			"with program (the process name) and files. dots says so when one is running.",
 	},
 }
 
 // EnvConfig names the environment variable that selects another
 // configuration file.
-const EnvConfig = "DOT_CONFIG"
+const EnvConfig = "DOTS_CONFIG"
 
 // DefaultPath returns the configuration file used when no other is named.
 func DefaultPath() (string, error) {
@@ -196,11 +196,11 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "dot", "config.toml"), nil
+	return filepath.Join(dir, "dots", "config.toml"), nil
 }
 
 // Load loads the settings. If file is empty, Load reads the file named by
-// DOT_CONFIG, or the default file if that is unset; only the default file may
+// DOTS_CONFIG, or the default file if that is unset; only the default file may
 // be missing.
 func Load(file string) (*Config, error) {
 	if file == "" {

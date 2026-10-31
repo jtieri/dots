@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/run"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/run"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // newUntrackFixture returns a home whose repo holds ~/.a, ~/.b and the
-// folder ~/.d, with package lists turned off so that dot push leaves them out.
+// folder ~/.d, with package lists turned off so that dots push leaves them out.
 func newUntrackFixture(t *testing.T) *fixture {
 	t.Helper()
 	d := testenv.NewDotfiles(t, map[string]string{
@@ -22,7 +22,7 @@ func newUntrackFixture(t *testing.T) *fixture {
 		"dot_d/y": "y\n",
 	})
 	f := &fixture{Dotfiles: d, t: t}
-	testenv.WriteFile(t, f.path(".config/dot/config.toml"), "[push]\npackage_lists = \"\"\n")
+	testenv.WriteFile(t, f.path(".config/dots/config.toml"), "[push]\npackage_lists = \"\"\n")
 	return f
 }
 
@@ -35,7 +35,7 @@ func (f *fixture) secondMachine() *fixture {
 	env := append(testenv.Vars(home), "PATH="+os.Getenv("PATH"))
 	repo := filepath.Join(home, "dotfiles")
 	testenv.WriteFile(f.t, filepath.Join(home, ".config/chezmoi/chezmoi.toml"), "sourceDir = \""+repo+"\"\numask = 0o022\n")
-	testenv.WriteFile(f.t, filepath.Join(home, ".config/dot/config.toml"), "[push]\npackage_lists = \"\"\n")
+	testenv.WriteFile(f.t, filepath.Join(home, ".config/dots/config.toml"), "[push]\npackage_lists = \"\"\n")
 	for _, args := range [][]string{
 		{"git", "clone", "--quiet", f.Remote, repo},
 		{"chezmoi", "--no-tty", "apply", "--exclude=scripts"},
@@ -51,7 +51,7 @@ func (f *fixture) secondMachine() *fixture {
 	}, t: f.t}
 }
 
-// use points the test's environment at f's home, so that dot runs there.
+// use points the test's environment at f's home, so that dots runs there.
 func (f *fixture) use() {
 	f.t.Helper()
 	for _, kv := range testenv.Vars(f.Home) {
@@ -73,7 +73,7 @@ func TestRm(t *testing.T) {
 	a.use()
 	code, out, errOut := a.run("", false, "rm", "--yes", "~/.a", "~/.d")
 	want := "Will delete from the repo and from every machine, this one included\n  ~/.a\n  ~/.d/x\n  ~/.d/y\n" +
-		"Removed ~/.a.\nRemoved ~/.d.\n\nRun dot push to commit and share the change.\n"
+		"Removed ~/.a.\nRemoved ~/.d.\n\nRun dots push to commit and share the change.\n"
 	if code != exitOK || out != want {
 		t.Errorf("rm = %d, %q, stderr %q; want 0, %q", code, out, errOut, want)
 	}
@@ -108,7 +108,7 @@ func TestForget(t *testing.T) {
 	a.use()
 	code, out, errOut := a.run("", false, "forget", "--yes", "~/.a", "~/.d")
 	want := "Will stop tracking; every machine keeps its own copy\n  ~/.a\n  ~/.d/x\n  ~/.d/y\n" +
-		"Stopped tracking ~/.a.\nStopped tracking ~/.d.\n\nRun dot push to commit and share the change.\n"
+		"Stopped tracking ~/.a.\nStopped tracking ~/.d.\n\nRun dots push to commit and share the change.\n"
 	if code != exitOK || out != want || errOut != "" {
 		t.Errorf("forget = %d, %q, stderr %q; want 0, %q", code, out, errOut, want)
 	}
@@ -150,8 +150,8 @@ func TestRmAnswers(t *testing.T) {
 			name: "unknown answer, then no", input: "k\nn\n", terminal: true, wantCode: exitOutOfSync,
 			wantErrOut: "Please answer with one of the letters in brackets.",
 		},
-		{name: "input ends", terminal: true, wantCode: exitError, wantErrOut: "dot: nothing changed: no answer was given\n"},
-		{name: "no terminal", wantCode: exitError, wantErrOut: "dot: nothing changed: there is no terminal to ask at; use --yes\n"},
+		{name: "input ends", terminal: true, wantCode: exitError, wantErrOut: "dots: nothing changed: no answer was given\n"},
+		{name: "no terminal", wantCode: exitError, wantErrOut: "dots: nothing changed: there is no terminal to ask at; use --yes\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -178,25 +178,25 @@ func TestRmAnswers(t *testing.T) {
 func TestRmRefusalLeavesTheRest(t *testing.T) {
 	f := newUntrackFixture(t)
 	code, out, errOut := f.run("y\n", true, "forget", "~/.nope", "~/.a", "~/.b")
-	if code != exitError || !strings.HasPrefix(errOut, "dot: the repo does not track ~/.nope\n") {
+	if code != exitError || !strings.HasPrefix(errOut, "dots: the repo does not track ~/.nope\n") {
 		t.Errorf("forget = %d, stderr %q; want 2 and the untracked file named", code, errOut)
 	}
 	if !strings.Contains(errOut, "Forget them? [y/N] ") || !strings.Contains(out, "Stopped tracking ~/.a.\nStopped tracking ~/.b.\n") {
 		t.Errorf("stdout %q, stderr %q; want the others forgotten", out, errOut)
 	}
-	if code, _, errOut := f.run("", false, "rm", "~/.nope"); code != exitError || errOut != "dot: the repo does not track ~/.nope\n" {
+	if code, _, errOut := f.run("", false, "rm", "~/.nope"); code != exitError || errOut != "dots: the repo does not track ~/.nope\n" {
 		t.Errorf("rm of only an untracked file = %d, stderr %q", code, errOut)
 	}
 }
 
 func TestRmWithoutBackups(t *testing.T) {
 	f := newUntrackFixture(t)
-	testenv.WriteFile(t, f.path(".config/dot/config.toml"), "[overwrite_backup]\nenabled = false\n[push]\npackage_lists = \"\"\n")
+	testenv.WriteFile(t, f.path(".config/dots/config.toml"), "[overwrite_backup]\nenabled = false\n[push]\npackage_lists = \"\"\n")
 	code, _, errOut := f.run("", false, "rm", "--yes", "~/.a")
 	if code != exitOK || errOut != "" {
 		t.Errorf("rm = %d, stderr %q; want 0 and no copies", code, errOut)
 	}
-	if _, err := os.Stat(filepath.Join(f.Home, ".local/state/dot/overwritten")); err == nil {
+	if _, err := os.Stat(filepath.Join(f.Home, ".local/state/dots/overwritten")); err == nil {
 		t.Error("copies were saved with overwrite_backup.enabled off")
 	}
 }

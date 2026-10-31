@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
-// TestInterruptPush checks that Ctrl-C while git pushes stops dot push with
+// TestInterruptPush checks that Ctrl-C while git pushes stops dots push with
 // exit code 130, keeps the commit, and says it was made.
 func TestInterruptPush(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
-	testenv.WriteFile(t, filepath.Join(d.Home, ".config/dot/config.toml"), "[push]\npackage_lists = \"\"\n")
+	testenv.WriteFile(t, filepath.Join(d.Home, ".config/dots/config.toml"), "[push]\npackage_lists = \"\"\n")
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a captured\n")
 	// The fetch reaches the remote; the push goes over ssh, which hangs.
 	pidFile := filepath.Join(t.TempDir(), "ssh.pid")

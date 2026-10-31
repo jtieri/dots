@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 type fixture struct {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/style"
+	"github.com/jtieri/dots/internal/style"
 )
 
 func TestWriteText(t *testing.T) {

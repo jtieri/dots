@@ -1,54 +1,54 @@
-# Settings come from ~/.config/dot/config.toml.
+# Settings come from ~/.config/dots/config.toml.
 dotfiles
 mkdir $HOME/Pictures/wallpapers/new
 cp photo $HOME/Pictures/wallpapers/new/photo.jpg
 cp photo $HOME/Pictures/holiday.jpg
 
 # By default ~/Pictures is checked, since it holds a tracked folder.
-exitcode 1 dot status
+exitcode 1 dots status
 stdout '~/Pictures/holiday.jpg'
 stdout '~/Pictures/wallpapers/new'
 
 # Skipping it leaves only the folder inside the tracked wallpapers folder.
-mkdir $HOME/.config/dot
-cp skip-pictures.toml $HOME/.config/dot/config.toml
-exitcode 1 dot status
+mkdir $HOME/.config/dots
+cp skip-pictures.toml $HOME/.config/dots/config.toml
+exitcode 1 dots status
 ! stdout holiday
 stdout '~/Pictures/wallpapers/new'
 
 # A modify template replaced by a plain copy is reported.
 rm $HOME/Pictures/wallpapers/new
-cp templates.toml $HOME/.config/dot/config.toml
-exitcode 1 dot status
+cp templates.toml $HOME/.config/dots/config.toml
+exitcode 1 dots status
 cmp stdout want-templates.txt
 
 # The environment overrides the file. An empty variable counts as unset.
-env DOT_LEFTOVERS_SKIP=~
-exitcode 1 dot status
+env DOTS_LEFTOVERS_SKIP=~
+exitcode 1 dots status
 stdout '~/Pictures/holiday.jpg'
-env DOT_LEFTOVERS_SKIP=
-exitcode 1 dot status
+env DOTS_LEFTOVERS_SKIP=
+exitcode 1 dots status
 ! stdout holiday
 
-# DOT_CONFIG and --config choose another file; --config wins.
+# DOTS_CONFIG and --config choose another file; --config wins.
 cp templates.toml other.toml
-env DOT_CONFIG=$WORK/other.toml
-exitcode 1 dot status
+env DOTS_CONFIG=$WORK/other.toml
+exitcode 1 dots status
 stdout 'modify templates'
-exitcode 0 dot status --config $WORK/skip-pictures.toml
-env DOT_CONFIG=
+exitcode 0 dots status --config $WORK/skip-pictures.toml
+env DOTS_CONFIG=
 
-# Mistakes in the file stop dot with exit 2.
-cp typo.toml $HOME/.config/dot/config.toml
-exitcode 2 dot status
+# Mistakes in the file stop dots with exit 2.
+cp typo.toml $HOME/.config/dots/config.toml
+exitcode 2 dots status
 ! stdout .
-stderr '^dot: config file .*config.toml: unknown setting "leftovers.skp"$'
+stderr '^dots: config file .*config.toml: unknown setting "leftovers.skp"$'
 
-cp bad-type.toml $HOME/.config/dot/config.toml
-exitcode 2 dot status
-stderr '^dot: config: ''fetch_timeout'' 10 is not a duration; write it as a string such as "10s"$'
+cp bad-type.toml $HOME/.config/dots/config.toml
+exitcode 2 dots status
+stderr '^dots: config: ''fetch_timeout'' 10 is not a duration; write it as a string such as "10s"$'
 
-exitcode 2 dot status --config $WORK/missing.toml
+exitcode 2 dots status --config $WORK/missing.toml
 stderr 'missing.toml'
 
 -- photo --

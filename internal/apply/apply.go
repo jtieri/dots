@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jtieri/dot/internal/backup"
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dots/internal/backup"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
 )
 
 // A Choice is what to do about files changed on this machine.

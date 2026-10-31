@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestColor(t *testing.T) {
@@ -49,14 +49,14 @@ func TestColorErrors(t *testing.T) {
 	streams.ErrIsTerminal = true
 	a := &app{streams: streams, euid: 1000, lockPath: filepath.Join(t.TempDir(), "lock")}
 	if code := execute([]string{"help", "nope"}, a); code != exitError ||
-		errOut.String() != "\x1b[1;31mdot:\x1b[0m unknown command \"nope\"; dot help lists them\n" {
-		t.Errorf("help nope = %d, stderr %q; want the error with dot: in red", code, errOut)
+		errOut.String() != "\x1b[1;31mdots:\x1b[0m unknown command \"nope\"; dots help lists them\n" {
+		t.Errorf("help nope = %d, stderr %q; want the error with dots: in red", code, errOut)
 	}
 
 	streams, _, _, errOut = iostreams.Test()
 	a = &app{streams: streams, euid: 1000, lockPath: filepath.Join(t.TempDir(), "lock")}
 	if code := execute([]string{"status", "--color=yes"}, a); code != exitError ||
-		errOut.String() != "dot: --color \"yes\" must be auto, always or never\n" {
+		errOut.String() != "dots: --color \"yes\" must be auto, always or never\n" {
 		t.Errorf("status --color=yes = %d, stderr %q", code, errOut)
 	}
 }

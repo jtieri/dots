@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/status"
+	"github.com/jtieri/dots/internal/status"
 )
 
 func newStatusCmd(a *app) *cobra.Command {

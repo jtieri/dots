@@ -1,4 +1,4 @@
-// Package lock makes sure only one dot runs at a time.
+// Package lock makes sure only one dots command runs at a time.
 package lock
 
 import (
@@ -12,7 +12,7 @@ import (
 
 // ErrBusy is returned when another process holds the lock and the caller
 // chose not to wait.
-var ErrBusy = errors.New("another dot is running")
+var ErrBusy = errors.New("another dots command is running")
 
 // pollInterval is how often a waiting Acquire tries again.
 const pollInterval = 100 * time.Millisecond
@@ -27,7 +27,7 @@ func DefaultPath() (string, error) {
 			return "", err
 		}
 	}
-	return filepath.Join(dir, "dot", "lock"), nil
+	return filepath.Join(dir, "dots", "lock"), nil
 }
 
 // Acquire takes the lock at path, creating the file if needed. If another

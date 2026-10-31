@@ -3,12 +3,12 @@ package proc
 import (
 	"testing"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestRunning(t *testing.T) {
 	// A name no other process has, longer than the kernel keeps.
-	name := "dot-proc-test-sleeper"
+	name := "dots-proc-test-sleeper"
 	if got, err := Running(name); err != nil || got {
 		t.Fatalf("Running(%q) before starting it = %t, %v; want false", name, got, err)
 	}

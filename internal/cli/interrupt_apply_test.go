@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
-// TestInterruptApply checks that Ctrl-C during a setup step stops dot apply
+// TestInterruptApply checks that Ctrl-C during a setup step stops dots apply
 // with exit code 130, and that running it again finishes the job.
 func TestInterruptApply(t *testing.T) {
 	pidFile := filepath.Join(t.TempDir(), "step.pid")

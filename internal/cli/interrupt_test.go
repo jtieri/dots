@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // TestInterrupt checks that Ctrl-C during the fetch stops a command

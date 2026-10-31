@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestParseStatus(t *testing.T) {
@@ -197,7 +197,7 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("program not found", func(t *testing.T) {
-		c := &Client{Program: "dot-no-such-chezmoi"}
+		c := &Client{Program: "dots-no-such-chezmoi"}
 		if _, err := c.Status(ctx); err == nil {
 			t.Error("Status() error = nil, want an error")
 		}

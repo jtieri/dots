@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 var now = time.Date(2026, 10, 29, 14, 0, 0, 0, time.Local)
@@ -72,7 +72,7 @@ func TestRemoveFile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(f.Source, "dot_a")); err == nil {
 		t.Error("the repo still has dot_a")
 	}
-	want := "# Removed from the repo by dot rm; every machine deletes these.\n.a\n"
+	want := "# Removed from the repo by dots rm; every machine deletes these.\n.a\n"
 	if got := testenv.ReadFile(t, filepath.Join(f.Source, ".chezmoiremove")); got != want {
 		t.Errorf(".chezmoiremove = %q, want %q", got, want)
 	}
@@ -147,7 +147,7 @@ func TestForget(t *testing.T) {
 	if !f.exists(".a") || !f.exists(".d/x") {
 		t.Error("want every file kept")
 	}
-	want := "# Caches.\n**/*.cache\n\n# No longer tracked, by dot forget; each machine keeps its own copy.\n.a\n.d\n"
+	want := "# Caches.\n**/*.cache\n\n# No longer tracked, by dots forget; each machine keeps its own copy.\n.a\n.d\n"
 	if got := testenv.ReadFile(t, filepath.Join(f.Source, ".chezmoiignore")); got != want {
 		t.Errorf(".chezmoiignore = %q, want %q", got, want)
 	}

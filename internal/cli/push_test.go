@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 // newPushFixture returns a home whose repo has an uncommitted change to
-// ~/.a, as dot capture leaves it, with package lists turned off unless lists
+// ~/.a, as dots capture leaves it, with package lists turned off unless lists
 // is set. pacman, when the lists are on, is a stand-in that lists base.
 func newPushFixture(t *testing.T, lists bool) *fixture {
 	t.Helper()
@@ -18,7 +18,7 @@ func newPushFixture(t *testing.T, lists bool) *fixture {
 	f := &fixture{Dotfiles: d, t: t}
 	testenv.WriteFile(t, filepath.Join(d.Source, "dot_a"), "a captured\n")
 	if !lists {
-		testenv.WriteFile(t, f.path(".config/dot/config.toml"), "[push]\npackage_lists = \"\"\n")
+		testenv.WriteFile(t, f.path(".config/dots/config.toml"), "[push]\npackage_lists = \"\"\n")
 		return f
 	}
 	bin := t.TempDir()
@@ -107,7 +107,7 @@ func TestPushAnswers(t *testing.T) {
 		{name: "diff, then yes", input: "\nd\ny\n", wantCode: exitOK, wantMessage: "update from ", wantOut: "+a captured\n"},
 		{name: "unknown answer, then no", input: "\nx\nn\n", wantCode: exitOutOfSync, wantErrOut: "Please answer with one of the letters in brackets."},
 		{name: "enter cancels", input: "\n\n", wantCode: exitOutOfSync, wantErrOut: "Nothing was committed or pushed.\n"},
-		{name: "input ends", input: "", wantCode: exitError, wantErrOut: "dot: nothing committed or pushed: no answer was given\n"},
+		{name: "input ends", input: "", wantCode: exitError, wantErrOut: "dots: nothing committed or pushed: no answer was given\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestPushAnswers(t *testing.T) {
 func TestPushWithoutTerminal(t *testing.T) {
 	f := newPushFixture(t, true)
 	code, _, errOut := f.run("", false, "push")
-	if want := "dot: nothing committed or pushed: there is no terminal to ask at; use --yes\n"; code != exitError || !strings.HasSuffix(errOut, want) {
+	if want := "dots: nothing committed or pushed: there is no terminal to ask at; use --yes\n"; code != exitError || !strings.HasSuffix(errOut, want) {
 		t.Errorf("push = %d, stderr %q; want 2 and %q", code, errOut, want)
 	}
 	if got := f.Git(t, "status", "--porcelain"); got != " M home/dot_a\n" {
@@ -151,7 +151,7 @@ func TestPushWithoutTerminal(t *testing.T) {
 func TestPushNothing(t *testing.T) {
 	d := testenv.NewDotfiles(t, map[string]string{"dot_a": "a\n"})
 	f := &fixture{Dotfiles: d, t: t}
-	testenv.WriteFile(t, f.path(".config/dot/config.toml"), "[push]\npackage_lists = \"\"\n")
+	testenv.WriteFile(t, f.path(".config/dots/config.toml"), "[push]\npackage_lists = \"\"\n")
 	code, out, errOut := f.run("", false, "push")
 	if code != exitOK || out != "Nothing to push.\n" || errOut != "" {
 		t.Errorf("push = %d, %q, stderr %q; want 0 and nothing to push", code, out, errOut)
@@ -162,7 +162,7 @@ func TestPushUncaptured(t *testing.T) {
 	f := newPushFixture(t, false)
 	testenv.WriteFile(t, f.path(".b"), "b edited here\n")
 	code, _, errOut := f.run("", false, "push", "--yes")
-	want := "Changed on this machine but not captured, so left out; dot capture copies it into the repo\n  ~/.b\n\n"
+	want := "Changed on this machine but not captured, so left out; dots capture copies it into the repo\n  ~/.b\n\n"
 	if code != exitOK || errOut != want {
 		t.Errorf("push = %d, stderr %q; want 0, %q", code, errOut, want)
 	}
@@ -197,27 +197,27 @@ func TestPushStops(t *testing.T) {
 		{
 			name:  "behind",
 			setup: func(f *fixture) { f.PushFromElsewhere(f.t, map[string]string{"home/dot_c": "c\n"}) },
-			wantErrOut: "dot: nothing was committed, because the remote has 1 commit this machine has not pulled; " +
-				"run dot sync, then dot push again\n",
+			wantErrOut: "dots: nothing was committed, because the remote has 1 commit this machine has not pulled; " +
+				"run dots sync, then dots push again\n",
 		},
 		{
 			name:       "detached",
 			setup:      func(f *fixture) { f.Git(f.t, "checkout", "--quiet", "--detach") },
-			wantErrOut: "dot: the repo is not on a branch, so there is nothing to push; switch to main with git switch\n",
+			wantErrOut: "dots: the repo is not on a branch, so there is nothing to push; switch to main with git switch\n",
 		},
 		{
 			name: "no upstream",
 			setup: func(f *fixture) {
 				f.Git(f.t, "checkout", "--quiet", "-b", "local-only")
-				f.t.Setenv("DOT_BRANCH", "local-only")
+				f.t.Setenv("DOTS_BRANCH", "local-only")
 			},
-			wantErrOut: "dot: branch local-only does not track a remote branch, so there is nothing to push to; " +
+			wantErrOut: "dots: branch local-only does not track a remote branch, so there is nothing to push to; " +
 				"set one with git push --set-upstream origin local-only\n",
 		},
 		{
 			name:       "protected file in the repo",
 			setup:      func(f *fixture) { testenv.WriteFile(f.t, filepath.Join(f.Source, "dot_ssh/private_id_rsa"), "key\n") },
-			wantErrOut: "dot: the repo has an uncommitted copy of ~/.ssh/id_rsa, which capture.protected",
+			wantErrOut: "dots: the repo has an uncommitted copy of ~/.ssh/id_rsa, which capture.protected",
 		},
 	}
 	for _, tt := range tests {
@@ -239,7 +239,7 @@ func TestPushOffline(t *testing.T) {
 	f := newPushFixture(t, false)
 	f.Git(t, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
 	code, out, errOut := f.run("y\n", true, "push", "offline")
-	want := "dot: committed, but nothing was pushed, because the remote could not be reached; the next dot push sends it\n"
+	want := "dots: committed, but nothing was pushed, because the remote could not be reached; the next dots push sends it\n"
 	if code != exitError || !strings.HasPrefix(errOut, "Could not fetch from the remote: ") || !strings.HasSuffix(errOut, want) {
 		t.Errorf("push = %d, stderr %q; want 2 and %q", code, errOut, want)
 	}
@@ -248,7 +248,7 @@ func TestPushOffline(t *testing.T) {
 	}
 
 	code, _, errOut = f.run("", false, "push", "--yes")
-	if want := "dot: nothing was pushed, because the remote could not be reached\n"; code != exitError || !strings.HasSuffix(errOut, want) {
+	if want := "dots: nothing was pushed, because the remote could not be reached\n"; code != exitError || !strings.HasSuffix(errOut, want) {
 		t.Errorf("push of earlier commits offline = %d, stderr %q; want 2 and %q", code, errOut, want)
 	}
 
@@ -279,7 +279,7 @@ func TestPushFails(t *testing.T) {
 				testenv.Run(f.t, other, "git", "push", "--quiet")
 				f.Git(f.t, "config", "remote.origin.pushurl", ahead)
 			},
-			wantErrOut: "dot: committed, but nothing was pushed, because the remote has new commits; run dot sync, then dot push again\n",
+			wantErrOut: "dots: committed, but nothing was pushed, because the remote has new commits; run dots sync, then dots push again\n",
 		},
 		{
 			name: "turned down",
@@ -288,7 +288,7 @@ func TestPushFails(t *testing.T) {
 				testenv.WriteFile(f.t, hook, "#!/bin/sh\necho 'no pushes today' >&2\nexit 1\n")
 				chmodFile(f.t, hook, 0o755)
 			},
-			wantErrOut: "dot: committed, but nothing was pushed: remote: no pushes today; dot push tries again\n",
+			wantErrOut: "dots: committed, but nothing was pushed: remote: no pushes today; dots push tries again\n",
 		},
 	}
 	for _, tt := range tests {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 var defaults = Config{
@@ -26,7 +26,7 @@ var defaults = Config{
 // writeConfig writes the default configuration file.
 func writeConfig(t *testing.T, home, data string) {
 	t.Helper()
-	testenv.WriteFile(t, filepath.Join(home, ".config", "dot", "config.toml"), data)
+	testenv.WriteFile(t, filepath.Join(home, ".config", "dots", "config.toml"), data)
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -101,13 +101,13 @@ var cmpRegexp = cmp.Comparer(func(a, b *regexp.Regexp) bool { return a.String() 
 func TestLoadEnvironmentOverridesFile(t *testing.T) {
 	home := testenv.Isolate(t)
 	writeConfig(t, home, "branch = \"trunk\"\nfetch_timeout = \"5s\"\n[leftovers]\nskip = [\"~\"]\n")
-	t.Setenv("DOT_BRANCH", "env-branch")
-	t.Setenv("DOT_FETCH_TIMEOUT", "1m")
-	t.Setenv("DOT_LEFTOVERS_SKIP", "~/a,~/b c")
-	t.Setenv("DOT_CAPTURE_PROTECTED", "~/.ssh/k*")
-	t.Setenv("DOT_OVERWRITE_BACKUP_ENABLED", "false")
-	t.Setenv("DOT_OVERWRITE_BACKUP_KEEP_DAYS", "7")
-	t.Setenv("DOT_PUSH_PACKAGE_LISTS", "lists/pacman")
+	t.Setenv("DOTS_BRANCH", "env-branch")
+	t.Setenv("DOTS_FETCH_TIMEOUT", "1m")
+	t.Setenv("DOTS_LEFTOVERS_SKIP", "~/a,~/b c")
+	t.Setenv("DOTS_CAPTURE_PROTECTED", "~/.ssh/k*")
+	t.Setenv("DOTS_OVERWRITE_BACKUP_ENABLED", "false")
+	t.Setenv("DOTS_OVERWRITE_BACKUP_KEEP_DAYS", "7")
+	t.Setenv("DOTS_PUSH_PACKAGE_LISTS", "lists/pacman")
 	got, err := Load("")
 	if err != nil {
 		t.Fatal(err)
@@ -137,10 +137,10 @@ func TestLoadChoosesFile(t *testing.T) {
 
 	t.Setenv(EnvConfig, envFile)
 	if got, err := Load(""); err != nil || got.Branch != "env-file" {
-		t.Errorf("Load() with DOT_CONFIG: branch %v, %v; want env-file", branch(got), err)
+		t.Errorf("Load() with DOTS_CONFIG: branch %v, %v; want env-file", branch(got), err)
 	}
 	if got, err := Load(flagFile); err != nil || got.Branch != "flag-file" {
-		t.Errorf("Load(flagFile) with DOT_CONFIG: branch %v, %v; want flag-file", branch(got), err)
+		t.Errorf("Load(flagFile) with DOTS_CONFIG: branch %v, %v; want flag-file", branch(got), err)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestLoadMissingNamedFile(t *testing.T) {
 	}
 	t.Setenv(EnvConfig, missing)
 	if _, err := Load(""); err == nil {
-		t.Error("Load() with DOT_CONFIG naming a missing file: error = nil, want an error")
+		t.Error("Load() with DOTS_CONFIG naming a missing file: error = nil, want an error")
 	}
 }
 
@@ -197,8 +197,8 @@ func TestLoadErrors(t *testing.T) {
 		{name: "number for a bool", file: "[overwrite_backup]\nenabled = 1\n", wantErr: "overwrite_backup.enabled"},
 		{name: "fraction for a number", file: "[overwrite_backup]\nkeep_days = 1.5\n", wantErr: "'overwrite_backup.keep_days' 1.5 is not a whole number"},
 		{name: "negative days", file: "[overwrite_backup]\nkeep_days = -1\n", wantErr: "overwrite_backup.keep_days -1 must not be negative"},
-		{name: "bad environment bool", env: map[string]string{"DOT_OVERWRITE_BACKUP_ENABLED": "maybe"}, wantErr: "overwrite_backup.enabled"},
-		{name: "bad environment number", env: map[string]string{"DOT_OVERWRITE_BACKUP_KEEP_DAYS": "a month"}, wantErr: "overwrite_backup.keep_days"},
+		{name: "bad environment bool", env: map[string]string{"DOTS_OVERWRITE_BACKUP_ENABLED": "maybe"}, wantErr: "overwrite_backup.enabled"},
+		{name: "bad environment number", env: map[string]string{"DOTS_OVERWRITE_BACKUP_KEEP_DAYS": "a month"}, wantErr: "overwrite_backup.keep_days"},
 		{name: "unknown key in a notice", file: "[[restart_notices]]\nprogram = \"zed\"\nfile = [\"~/x\"]\n", wantErr: "restart_notices[0]' has invalid keys: file"},
 		{name: "notice without files", file: "[[restart_notices]]\nprogram = \"zed\"\n", wantErr: "restart_notices[0]: files is empty"},
 		{name: "notice with a path for a program", file: "[[restart_notices]]\nprogram = \"/usr/bin/zed\"\nfiles = [\"~/x\"]\n", wantErr: "must be a process name"},
@@ -216,7 +216,7 @@ func TestLoadErrors(t *testing.T) {
 		{name: "template keep not a pattern", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = \"(\"\n", wantErr: "'modify_templates[0].keep' error parsing regexp: missing closing )"},
 		{name: "template keep not a string", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = 5\n", wantErr: "'modify_templates[0].keep' 5 is not a regular expression"},
 		{name: "unknown key in a template", file: "[[modify_templates]]\nfile = \"~/x\"\nkeep = \"x\"\nkept = \"y\"\n", wantErr: "invalid keys: kept"},
-		{name: "bad environment value", env: map[string]string{"DOT_FETCH_TIMEOUT": "soon"}, wantErr: "fetch_timeout"},
+		{name: "bad environment value", env: map[string]string{"DOTS_FETCH_TIMEOUT": "soon"}, wantErr: "fetch_timeout"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

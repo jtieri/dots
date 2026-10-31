@@ -4,8 +4,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/style"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/style"
 )
 
 // headings gives the preview's heading for each Kind.

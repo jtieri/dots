@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/git"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/git"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestOpen(t *testing.T) {

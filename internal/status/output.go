@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/style"
-	"github.com/jtieri/dot/internal/text"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/style"
+	"github.com/jtieri/dots/internal/text"
 )
 
 // homeKinds gives the order and wording of the kinds of HomeChange.

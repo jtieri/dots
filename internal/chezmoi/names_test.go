@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jtieri/dot/internal/run"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/run"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestTargetPath(t *testing.T) {

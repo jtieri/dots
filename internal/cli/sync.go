@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jtieri/dot/internal/dotfiles"
-	"github.com/jtieri/dot/internal/git"
-	"github.com/jtieri/dot/internal/run"
-	"github.com/jtieri/dot/internal/text"
+	"github.com/jtieri/dots/internal/dotfiles"
+	"github.com/jtieri/dots/internal/git"
+	"github.com/jtieri/dots/internal/run"
+	"github.com/jtieri/dots/internal/text"
 )
 
 func newSyncCmd(a *app) *cobra.Command {
@@ -20,12 +20,12 @@ func newSyncCmd(a *app) *cobra.Command {
 		Use:   "sync",
 		Short: "Pull changes from the other machines and apply them",
 		Long: `Pull the changes other machines have pushed, then make the home directory
-match the repo the same way dot apply does; see dot apply --help.
+match the repo the same way dots apply does; see dots apply --help.
 
-The pull only fast-forwards. dot stops before applying anything when this
+The pull only fast-forwards. dots stops before applying anything when this
 machine and the remote both have commits the other lacks, or when the pull
 would overwrite uncommitted changes in the repo. When the remote cannot be
-reached, dot offers to apply what the repo already has.
+reached, dots offers to apply what the repo already has.
 
 Canceling the apply leaves the repo pulled and the home directory unchanged.
 
@@ -100,7 +100,7 @@ func (a *app) pullError(branch string, err error) error {
 	if divErr, ok := errors.AsType[*git.DivergedError](err); ok {
 		return fmt.Errorf("nothing was pulled, because this machine and the remote both have new commits "+
 			"(%s not pushed, %s not pulled); combine them with git, for example git pull --rebase, "+
-			"then run dot sync again",
+			"then run dots sync again",
 			text.Pluralize(divErr.Ahead, "commit"), text.Pluralize(divErr.Behind, "commit"))
 	}
 	if blockedErr, ok := errors.AsType[*git.BlockedError](err); ok {
@@ -109,12 +109,12 @@ func (a *app) pullError(branch string, err error) error {
 			files[i] = a.repoFile(p)
 		}
 		return fmt.Errorf("nothing was pulled, because it would overwrite uncommitted changes in the repo to %s; "+
-			"commit or discard them, then run dot sync again", strings.Join(files, ", "))
+			"commit or discard them, then run dots sync again", strings.Join(files, ", "))
 	}
 	return err
 }
 
-// repoFile names a file in the repo the way dot status does: by the file it
+// repoFile names a file in the repo the way dots status does: by the file it
 // produces in the home directory, or by its path in the repo if there is none.
 func (a *app) repoFile(repoPath string) string {
 	if rel, ok := a.dotfiles.HomePath(repoPath); ok {

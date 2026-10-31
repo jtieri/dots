@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jtieri/dot/internal/run"
-	"github.com/jtieri/dot/internal/text"
+	"github.com/jtieri/dots/internal/run"
+	"github.com/jtieri/dots/internal/text"
 )
 
 // stopGrace is how long git has to stop after being interrupted before it
@@ -39,7 +39,7 @@ func (r *Repo) command(ctx context.Context, args ...string) *exec.Cmd {
 	if program == "" {
 		program = "git"
 	}
-	// Optional locks would let a background "dot status" get in the way of
+	// Optional locks would let a background "dots status" get in the way of
 	// git commands run by hand at the same time.
 	args = append([]string{"--no-optional-locks", "-C", r.Dir}, args...)
 	return exec.CommandContext(ctx, program, args...)
@@ -63,7 +63,7 @@ func Toplevel(ctx context.Context, dir string) (string, error) {
 // the contents after of the file name, a slash-separated path such as a path
 // in the repo. It is empty when the contents are the same. No file is read.
 func DiffContents(ctx context.Context, name string, before, after []byte) ([]byte, error) {
-	dir, err := os.MkdirTemp("", "dot-diff-")
+	dir, err := os.MkdirTemp("", "dots-diff-")
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +374,7 @@ func (r *Repo) StagedDiff(ctx context.Context, paths []string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmp, err := os.CreateTemp("", "dot-index-")
+	tmp, err := os.CreateTemp("", "dots-index-")
 	if err != nil {
 		return nil, err
 	}

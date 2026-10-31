@@ -5,9 +5,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/jtieri/dot/internal/config"
-	"github.com/jtieri/dot/internal/iostreams"
-	"github.com/jtieri/dot/internal/testenv"
+	"github.com/jtieri/dots/internal/config"
+	"github.com/jtieri/dots/internal/iostreams"
+	"github.com/jtieri/dots/internal/testenv"
 )
 
 func TestHelp(t *testing.T) {
@@ -23,11 +23,11 @@ func TestHelp(t *testing.T) {
 		if c.Hidden || c.Name() == "help" || c.Name() == "completion" {
 			continue
 		}
-		if !strings.Contains(out, "  dot "+c.Use+"  ") {
-			t.Errorf("the cheat sheet lacks dot %s in its everyday commands", c.Name())
+		if !strings.Contains(out, "  dots "+c.Use+"  ") {
+			t.Errorf("the cheat sheet lacks dots %s in its everyday commands", c.Name())
 		}
 		if !strings.Contains(out, "\n  "+c.Name()+" ") {
-			t.Errorf("the cheat sheet does not say what dot %s runs underneath", c.Name())
+			t.Errorf("the cheat sheet does not say what dots %s runs underneath", c.Name())
 		}
 	}
 	for _, s := range config.Settings {
@@ -54,7 +54,7 @@ func TestHelpCommand(t *testing.T) {
 		t.Errorf("help sync = %d, %q; want sync's help", code, out)
 	}
 	code, _, errOut := f.run("", false, "help", "nope")
-	if want := "dot: unknown command \"nope\"; dot help lists them\n"; code != exitError || errOut != want {
+	if want := "dots: unknown command \"nope\"; dots help lists them\n"; code != exitError || errOut != want {
 		t.Errorf("help nope = %d, stderr %q; want 2, %q", code, errOut, want)
 	}
 }

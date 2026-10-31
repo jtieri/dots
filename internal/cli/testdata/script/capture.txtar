@@ -1,18 +1,18 @@
-# dot capture copies files changed here into the repo.
+# dots capture copies files changed here into the repo.
 dotfiles
-mkdir $HOME/.config/dot
-cp config.toml $HOME/.config/dot/config.toml
+mkdir $HOME/.config/dots
+cp config.toml $HOME/.config/dots/config.toml
 
 # A plain file.
 cp kitty-edited $HOME/.config/kitty/kitty.conf
-exitcode 0 dot capture $HOME/.config/kitty/kitty.conf
+exitcode 0 dots capture $HOME/.config/kitty/kitty.conf
 cmp stdout captured-kitty.txt
 cmp $HOME/dotfiles/home/dot_config/kitty/kitty.conf kitty-edited
 
 # Zed's settings: the template is rewritten around this machine's theme
 # block, and reproduces the file exactly.
 cp zed-edited $HOME/.config/zed/settings.json
-exitcode 0 dot capture ~/.config/zed/settings.json
+exitcode 0 dots capture ~/.config/zed/settings.json
 cmp stdout captured-zed.txt
 cmp $HOME/dotfiles/home/dot_config/zed/modify_private_settings.json want-template
 exec chezmoi --no-tty cat $HOME/.config/zed/settings.json
@@ -22,13 +22,13 @@ exec chezmoi --no-tty status
 
 # A protected file is refused.
 cp key $HOME/.ssh/id_ed25519
-exitcode 2 dot capture ~/.ssh/id_ed25519
+exitcode 2 dots capture ~/.ssh/id_ed25519
 ! stdout .
-stderr '^dot: ~/.ssh/id_ed25519 is protected by the capture.protected setting, so it is never copied into the repo$'
+stderr '^dots: ~/.ssh/id_ed25519 is protected by the capture.protected setting, so it is never copied into the repo$'
 
-# With no files named, dot goes through each file changed here.
+# With no files named, dots goes through each file changed here.
 cp kitty-again $HOME/.config/kitty/kitty.conf
-exitcode 0 dot capture --yes
+exitcode 0 dots capture --yes
 cmp stdout captured-kitty.txt
 cmp $HOME/dotfiles/home/dot_config/kitty/kitty.conf kitty-again
 
@@ -45,11 +45,11 @@ font_size 14
 -- captured-kitty.txt --
 Captured ~/.config/kitty/kitty.conf.
 
-Run dot push to commit and share the captured changes.
+Run dots push to commit and share the captured changes.
 -- captured-zed.txt --
 Captured ~/.config/zed/settings.json.
 
-Run dot push to commit and share the captured changes.
+Run dots push to commit and share the captured changes.
 -- zed-edited --
 // Zed settings
 {
@@ -65,7 +65,7 @@ Run dot push to commit and share the captured changes.
 {{- if not $theme -}}
 {{-   $theme = "\"theme\": {\n    \"dark\": \"Default\"\n  }" -}}
 {{- end -}}
-{{- /* dot capture: the file follows */ -}}
+{{- /* dots capture: the file follows */ -}}
 // Zed settings
 {
   {{ $theme }},
@@ -81,7 +81,7 @@ Host *
 {{- if not $theme -}}
 {{-   $theme = "\"theme\": {\n    \"dark\": \"Default\"\n  }" -}}
 {{- end -}}
-{{- /* dot capture: the file follows */ -}}
+{{- /* dots capture: the file follows */ -}}
 // Zed settings
 {
   {{ $theme }},

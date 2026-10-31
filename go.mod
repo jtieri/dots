@@ -1,4 +1,4 @@
-module github.com/jtieri/dot
+module github.com/jtieri/dots
 
 go 1.27.0
 

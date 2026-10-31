@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jtieri/dot/internal/backup"
-	"github.com/jtieri/dot/internal/chezmoi"
-	"github.com/jtieri/dot/internal/dotfiles"
+	"github.com/jtieri/dots/internal/backup"
+	"github.com/jtieri/dots/internal/chezmoi"
+	"github.com/jtieri/dots/internal/dotfiles"
 )
 
 // A Mode says what becomes of the files the repo stops tracking.
@@ -34,12 +34,12 @@ const (
 )
 
 // listFile and listHeading name the repo file each mode lists its paths in,
-// and the comment written above the first path dot adds to it.
+// and the comment written above the first path dots adds to it.
 var (
 	listFile    = map[Mode]string{Remove: ".chezmoiremove", Forget: ".chezmoiignore"}
 	listHeading = map[Mode]string{
-		Remove: "# Removed from the repo by dot rm; every machine deletes these.",
-		Forget: "# No longer tracked, by dot forget; each machine keeps its own copy.",
+		Remove: "# Removed from the repo by dots rm; every machine deletes these.",
+		Forget: "# No longer tracked, by dots forget; each machine keeps its own copy.",
 	}
 )
 

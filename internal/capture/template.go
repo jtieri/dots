@@ -9,8 +9,8 @@ import (
 )
 
 // Marker is the line in a modify template between its logic and the file it
-// produces. dot rewrites everything below it.
-const Marker = "{{- /* dot capture: the file follows */ -}}"
+// produces. dots rewrites everything below it.
+const Marker = "{{- /* dots capture: the file follows */ -}}"
 
 // escapedDelim is how a template writes the text "{{".
 const escapedDelim = `{{ "{{" }}`

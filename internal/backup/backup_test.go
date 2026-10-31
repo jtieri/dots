@@ -164,11 +164,11 @@ func list(t *testing.T, dir string) []string {
 
 func TestDefaultDir(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "/state")
-	if got := DefaultDir("/home/me"); got != "/state/dot/overwritten" {
-		t.Errorf("DefaultDir() = %q, want /state/dot/overwritten", got)
+	if got := DefaultDir("/home/me"); got != "/state/dots/overwritten" {
+		t.Errorf("DefaultDir() = %q, want /state/dots/overwritten", got)
 	}
 	t.Setenv("XDG_STATE_HOME", "")
-	if got := DefaultDir("/home/me"); got != "/home/me/.local/state/dot/overwritten" {
+	if got := DefaultDir("/home/me"); got != "/home/me/.local/state/dots/overwritten" {
 		t.Errorf("DefaultDir() without XDG_STATE_HOME = %q", got)
 	}
 }

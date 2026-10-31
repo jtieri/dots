@@ -2,17 +2,17 @@
 
 .DEFAULT_GOAL := help
 
-BINARY := bin/dot
+BINARY := bin/dots
 
 .PHONY: help build install test test-race cover lint fmt vet tidy check clean
 
 help: ## Show this list
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-10s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-build: ## Build ./bin/dot
+build: ## Build ./bin/dots
 	go build -o $(BINARY) .
 
-install: ## Install dot into your Go bin directory
+install: ## Install dots into your Go bin directory
 	go install .
 
 test: ## Run the tests

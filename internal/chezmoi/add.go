@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jtieri/dot/internal/run"
+	"github.com/jtieri/dots/internal/run"
 )
 
 // AddOptions control Add.
