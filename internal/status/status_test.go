@@ -93,6 +93,13 @@ func TestCheckFindsEverything(t *testing.T) {
 	if err := os.Remove(home(".x")); err != nil {
 		t.Fatal(err)
 	}
+	// A tracked file swapped for a link.
+	if err := os.Remove(home(".config/kitty/kitty.conf")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("elsewhere", home(".config/kitty/kitty.conf")); err != nil {
+		t.Fatal(err)
+	}
 	testenv.WriteFile(t, home(".config/kitty/left over.conf"), "old")
 	testenv.WriteFile(t, home(".config/kitty/cache/data"), "old")
 
@@ -134,6 +141,7 @@ func TestCheckFindsEverything(t *testing.T) {
 		},
 		Home: []HomeChange{
 			{Path: ".bashrc", Kind: ChangedHere},
+			{Path: ".config/kitty/kitty.conf", Kind: ChangedHere},
 			{Path: ".config/new.conf", Kind: NewInRepo},
 			{Path: ".old", Kind: RemovedInRepo},
 			{Path: ".profile", Kind: ChangedHere},
