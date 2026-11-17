@@ -38,7 +38,7 @@ any chezmoi setup whose source directory is in a git repo.
 ## Requirements
 
 - Go 1.27 or newer to build it
-- chezmoi (tested with 2.72.0) and git at run time
+- chezmoi and git at run time
 
 ## Install
 
