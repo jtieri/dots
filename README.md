@@ -56,8 +56,8 @@ lists each one with its default and its environment variable.
 
 ## Development
 
-Run `make` to list the targets. `make check` runs the full set of checks, so
-run it before committing.
+Run `make` to list the targets. `make check` runs the checks CI runs, so run
+it before committing. [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
 
