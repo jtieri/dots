@@ -1,0 +1,54 @@
+# CI runs the same make targets as a local checkout, on Arch Linux, so the
+# tests meet the chezmoi, git and Go that Arch users have.
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so a change in Arch or a new Go advisory shows up without a push.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Not pinned: the point is to test against Arch as it is today.
+    container: archlinux:base
+    steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed chezmoi gcc git go golangci-lint govulncheck make
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # dots refuses to run as root, and its tests run it.
+      - name: Add a user
+        run: |
+          useradd --create-home tester
+          chown -R tester: "$GITHUB_WORKSPACE"
+
+      - name: make check
+        shell: bash
+        run: runuser -u tester -- make check 2>&1 | tee check.log
+
+      - name: make vuln
+        if: ${{ !cancelled() }}
+        run: runuser -u tester -- make vuln
+
+      - name: Coverage
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          {
+            echo '| Package | Coverage |'
+            echo '|---|---|'
+            awk '$1 == "ok" { for (i = 1; i < NF; i++) if ($i == "coverage:") print "| `" $2 "` | " $(i + 1) " |" }' check.log
+            echo
+            echo "Total: $(runuser -u tester -- go tool cover -func=coverage.out | awk 'END { print $NF }')"
+          } >> "$GITHUB_STEP_SUMMARY"
